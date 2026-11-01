@@ -171,7 +171,8 @@ static __inline void YuvToARGB8_VSX(v16s y1,
   StoreARGB8_VSX(vec_packsu(b, g), ra, dst_argb);
 }
 
-// Converts and stores 16 pixels that share 8 U and V in pairs.
+// Converts and stores 16 pixels that share 8 U and V in pairs. u and v are
+// already widened, one lane per pair.
 static __inline void Yuv422ToARGB16_VSX(v8u y,
                                         v8u u,
                                         v8u v,
@@ -179,8 +180,7 @@ static __inline void Yuv422ToARGB16_VSX(v8u y,
                                         const struct YuvCoefs_VSX* c,
                                         uint8_t* dst_argb) {
   struct UVTerms_VSX t;
-  UVTerms_VSX(SHUFFLE_VSX(u, u, DUP2_LO_VSX), SHUFFLE_VSX(v, v, DUP2_LO_VSX), c,
-              &t);
+  UVTerms_VSX(u, v, c, &t);
   v8u a1 =
       a ? (v8u)vec_mergel((v64u)*a, (v64u)*a) : vec_splats((unsigned char)0);
   YuvToARGB8_VSX(Y16_VSX(SHUFFLE_VSX(y, y, DUP2_LO_VSX), c),
@@ -189,6 +189,11 @@ static __inline void Yuv422ToARGB16_VSX(v8u y,
   YuvToARGB8_VSX(Y16_VSX(SHUFFLE_VSX(y, y, DUP2_HI_VSX), c),
                  vec_mergel(t.b, t.b), vec_mergel(t.g, t.g),
                  vec_mergel(t.r, t.r), a ? &a1 : 0, dst_argb + 32);
+}
+
+// Widens the first 8 bytes to one lane per byte.
+static __inline v8u Widen422_VSX(v8u uv) {
+  return SHUFFLE_VSX(uv, uv, DUP2_LO_VSX);
 }
 
 // Converts and stores 16 pixels with their own U and V.
@@ -220,8 +225,8 @@ void I422ToARGBRow_VSX(const uint8_t* src_y,
   struct YuvCoefs_VSX c;
   LoadYuvCoefs_VSX(yuvconstants, &c);
   do {
-    Yuv422ToARGB16_VSX(Load16_VSX(src_y), Load8_VSX(src_u), Load8_VSX(src_v), 0,
-                       &c, dst_argb);
+    Yuv422ToARGB16_VSX(Load16_VSX(src_y), Widen422_VSX(Load8_VSX(src_u)),
+                       Widen422_VSX(Load8_VSX(src_v)), 0, &c, dst_argb);
     src_y += 16;
     src_u += 8;
     src_v += 8;
@@ -241,12 +246,58 @@ void I422AlphaToARGBRow_VSX(const uint8_t* src_y,
   LoadYuvCoefs_VSX(yuvconstants, &c);
   do {
     v8u a = Load16_VSX(src_a);
-    Yuv422ToARGB16_VSX(Load16_VSX(src_y), Load8_VSX(src_u), Load8_VSX(src_v),
-                       &a, &c, dst_argb);
+    Yuv422ToARGB16_VSX(Load16_VSX(src_y), Widen422_VSX(Load8_VSX(src_u)),
+                       Widen422_VSX(Load8_VSX(src_v)), &a, &c, dst_argb);
     src_y += 16;
     src_u += 8;
     src_v += 8;
     src_a += 16;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void NV12ToARGBRow_VSX(const uint8_t* src_y,
+                       const uint8_t* src_uv,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    v8u y = Load16_VSX(src_y);
+    v8u uv = Load16_VSX(src_uv);
+    Yuv422ToARGB16_VSX(y,
+                       SHUFFLE_VSX(uv, uv, 0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10,
+                                   12, 12, 14, 14),
+                       SHUFFLE_VSX(uv, uv, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11,
+                                   13, 13, 15, 15),
+                       0, &c, dst_argb);
+    src_y += 16;
+    src_uv += 16;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void NV21ToARGBRow_VSX(const uint8_t* src_y,
+                       const uint8_t* src_vu,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    v8u y = Load16_VSX(src_y);
+    v8u vu = Load16_VSX(src_vu);
+    Yuv422ToARGB16_VSX(y,
+                       SHUFFLE_VSX(vu, vu, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11,
+                                   13, 13, 15, 15),
+                       SHUFFLE_VSX(vu, vu, 0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10,
+                                   12, 12, 14, 14),
+                       0, &c, dst_argb);
+    src_y += 16;
+    src_vu += 16;
     dst_argb += 64;
     width -= 16;
   } while (width > 0);

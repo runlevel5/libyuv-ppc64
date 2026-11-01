@@ -5104,6 +5104,14 @@ int NV12ToARGBMatrix(const uint8_t* src_y,
     NV12ToARGBRow = NV12ToARGBRow_HVX;
   }
 #endif
+#if defined(HAS_NV12TOARGBROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    NV12ToARGBRow = NV12ToARGBRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      NV12ToARGBRow = NV12ToARGBRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     NV12ToARGBRow(src_y, src_uv, dst_argb, yuvconstants, width);
@@ -5213,6 +5221,14 @@ int NV21ToARGBMatrix(const uint8_t* src_y,
 #if defined(HAS_NV21TOARGBROW_HVX)
   if (TestCpuFlag(kCpuHasHVX)) {
     NV21ToARGBRow = NV21ToARGBRow_HVX;
+  }
+#endif
+#if defined(HAS_NV21TOARGBROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    NV21ToARGBRow = NV21ToARGBRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      NV21ToARGBRow = NV21ToARGBRow_VSX;
+    }
   }
 #endif
 

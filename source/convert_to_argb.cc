@@ -122,6 +122,14 @@ static int NV16ToARGB(const uint8_t* src_y,
     }
   }
 #endif
+#if defined(HAS_NV12TOARGBROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    NV12ToARGBRow = NV12ToARGBRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      NV12ToARGBRow = NV12ToARGBRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     NV12ToARGBRow(src_y, src_uv, dst_argb, &kYuvI601Constants, width);

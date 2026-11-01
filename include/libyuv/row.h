@@ -1341,6 +1341,8 @@ extern "C" {
 #define HAS_I444ALPHATOARGBROW_VSX
 #define HAS_I444TOARGBROW_VSX
 #define HAS_J400TOARGBROW_VSX
+#define HAS_NV12TOARGBROW_VSX
+#define HAS_NV21TOARGBROW_VSX
 #endif
 
 #undef SIMD_ALIGNED
@@ -8635,6 +8637,26 @@ void ARGBAttenuateRow_Any_VSX(const uint8_t* src_ptr,
 void ARGBUnattenuateRow_Any_VSX(const uint8_t* src_ptr,
                                 uint8_t* dst_ptr,
                                 int width);
+void NV12ToARGBRow_VSX(const uint8_t* src_y,
+                       const uint8_t* src_uv,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width);
+void NV21ToARGBRow_VSX(const uint8_t* src_y,
+                       const uint8_t* src_vu,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width);
+void NV12ToARGBRow_Any_VSX(const uint8_t* y_buf,
+                           const uint8_t* uv_buf,
+                           uint8_t* dst_ptr,
+                           const struct YuvConstants* yuvconstants,
+                           int width);
+void NV21ToARGBRow_Any_VSX(const uint8_t* y_buf,
+                           const uint8_t* uv_buf,
+                           uint8_t* dst_ptr,
+                           const struct YuvConstants* yuvconstants,
+                           int width);
 
 #ifdef __cplusplus
 }  // extern "C"
