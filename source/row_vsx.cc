@@ -90,6 +90,17 @@ static __inline void StoreARGB8_VSX(v8u bg, v8u ra, uint8_t* dst_argb) {
               dst_argb + 16);
 }
 
+// Stores 8 RGBA pixels (A, B, G, R in memory) from B and G of each pixel in
+// bg, and R and A in ra.
+static __inline void StoreRGBA8_VSX(v8u bg, v8u ra, uint8_t* dst_rgba) {
+  Store16_VSX(SHUFFLE_VSX(bg, ra, 24, 0, 8, 16, 25, 1, 9, 17, 26, 2, 10, 18, 27,
+                          3, 11, 19),
+              dst_rgba);
+  Store16_VSX(SHUFFLE_VSX(bg, ra, 28, 4, 12, 20, 29, 5, 13, 21, 30, 6, 14, 22,
+                          31, 7, 15, 23),
+              dst_rgba + 16);
+}
+
 // Stores 16 opaque gray ARGB pixels.
 static __inline void StoreGray_VSX(v8u y, uint8_t* dst_argb) {
   v8u alpha = vec_splats((unsigned char)0xff);
@@ -143,33 +154,53 @@ struct UVTerms_VSX {
   v16s b, g, r;
 };
 
-static __inline void UVTerms_VSX(v8u u,
-                                 v8u v,
-                                 const struct YuvCoefs_VSX* c,
-                                 struct UVTerms_VSX* t) {
+// From u - 128 and v - 128 in 16-bit lanes.
+static __inline void UVTermsS_VSX(v16s ui,
+                                  v16s vi,
+                                  const struct YuvCoefs_VSX* c,
+                                  struct UVTerms_VSX* t) {
   v16s zero = vec_splats((short)0);
-  v16s ui = UV16_VSX(u);
-  v16s vi = UV16_VSX(v);
   t->b = vec_mladd(ui, c->ub, zero);
   t->g = vec_mladd(ui, c->ug, vec_mladd(vi, c->vg, zero));
   t->r = vec_mladd(vi, c->vr, zero);
 }
 
+static __inline void UVTerms_VSX(v8u u,
+                                 v8u v,
+                                 const struct YuvCoefs_VSX* c,
+                                 struct UVTerms_VSX* t) {
+  UVTermsS_VSX(UV16_VSX(u), UV16_VSX(v), c, t);
+}
+
 // Converts 8 pixels and stores them. a is 8 alpha bytes in the first half,
 // or null for opaque pixels.
-static __inline void YuvToARGB8_VSX(v16s y1,
-                                    v16s tb,
-                                    v16s tg,
-                                    v16s tr,
-                                    const v8u* a,
-                                    uint8_t* dst_argb) {
+static __inline void YuvToPixels8_VSX(v16s y1,
+                                      v16s tb,
+                                      v16s tg,
+                                      v16s tr,
+                                      const v8u* a,
+                                      int rgba,
+                                      uint8_t* dst) {
   v16u six = vec_splats((unsigned short)6);
   v16s b = vec_sra(vec_adds(y1, tb), six);
   v16s g = vec_sra(vec_subs(y1, tg), six);
   v16s r = vec_sra(vec_adds(y1, tr), six);
   v8u ra = a ? (v8u)vec_mergeh((v64u)vec_packsu(r, r), (v64u)*a)
              : vec_packsu(r, vec_splats((short)255));
-  StoreARGB8_VSX(vec_packsu(b, g), ra, dst_argb);
+  if (rgba) {
+    StoreRGBA8_VSX(vec_packsu(b, g), ra, dst);
+  } else {
+    StoreARGB8_VSX(vec_packsu(b, g), ra, dst);
+  }
+}
+
+static __inline void YuvToARGB8_VSX(v16s y1,
+                                    v16s tb,
+                                    v16s tg,
+                                    v16s tr,
+                                    const v8u* a,
+                                    uint8_t* dst_argb) {
+  YuvToPixels8_VSX(y1, tb, tg, tr, a, 0, dst_argb);
 }
 
 // Converts and stores 16 pixels that share 8 U and V in pairs. u and v are
@@ -958,6 +989,236 @@ void SplitUVRow_16_VSX(const uint16_t* src_uv,
     src_uv += 32;
     dst_u += 16;
     dst_v += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+void I422ToRGBARow_VSX(const uint8_t* src_y,
+                       const uint8_t* src_u,
+                       const uint8_t* src_v,
+                       uint8_t* dst_rgba,
+                       const struct YuvConstants* yuvconstants,
+                       int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    v8u y = Load16_VSX(src_y);
+    struct UVTerms_VSX t;
+    UVTerms_VSX(Widen422_VSX(Load8_VSX(src_u)), Widen422_VSX(Load8_VSX(src_v)),
+                &c, &t);
+    YuvToPixels8_VSX(Y16_VSX(SHUFFLE_VSX(y, y, DUP2_LO_VSX), &c),
+                     vec_mergeh(t.b, t.b), vec_mergeh(t.g, t.g),
+                     vec_mergeh(t.r, t.r), 0, 1, dst_rgba);
+    YuvToPixels8_VSX(Y16_VSX(SHUFFLE_VSX(y, y, DUP2_HI_VSX), &c),
+                     vec_mergel(t.b, t.b), vec_mergel(t.g, t.g),
+                     vec_mergel(t.r, t.r), 0, 1, dst_rgba + 32);
+    src_y += 16;
+    src_u += 8;
+    src_v += 8;
+    dst_rgba += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+// The 10 bit rows widen Y to 16 bits as (y << 6) | (y >> 4), and take U
+// and V as clamp255(u >> 2), like the C rows. The P rows hold 16 bit
+// samples and take the high byte of U and V.
+
+static __inline v16s Y10_VSX(v16u y, const struct YuvCoefs_VSX* c) {
+  v16u y16 = vec_or(vec_sl(y, vec_splats((unsigned short)6)),
+                    vec_sr(y, vec_splats((unsigned short)4)));
+  return vec_add((v16s)MulHi16_VSX(y16, c->yg), c->yb);
+}
+
+static __inline v16s YP16_VSX(v16u y, const struct YuvCoefs_VSX* c) {
+  return vec_add((v16s)MulHi16_VSX(y, c->yg), c->yb);
+}
+
+// clamp255(u >> shift) - 128.
+static __inline v16s UVShift_VSX(v16u u, int shift) {
+  v16u s = vec_sr(u, vec_splats((unsigned short)shift));
+  return vec_sub((v16s)vec_min(s, vec_splats((unsigned short)255)),
+                 vec_splats((short)128));
+}
+
+// clamp255(a >> 2) for 16 alpha samples.
+static __inline v8u Alpha10_VSX(const uint16_t* src_a) {
+  v16u k2 = vec_splats((unsigned short)2);
+  return vec_packsu(vec_sr(vec_xl(0, src_a), k2),
+                    vec_sr(vec_xl(16, src_a), k2));
+}
+
+// Converts 16 pixels from Y in y0, y1 and 8 U and V terms, one per pair of
+// pixels.
+static __inline void Yuv422x16_VSX(v16s y0,
+                                   v16s y1,
+                                   const struct UVTerms_VSX* t,
+                                   const v8u* a,
+                                   uint8_t* dst_argb) {
+  v8u a1 =
+      a ? (v8u)vec_mergel((v64u)*a, (v64u)*a) : vec_splats((unsigned char)0);
+  YuvToARGB8_VSX(y0, vec_mergeh(t->b, t->b), vec_mergeh(t->g, t->g),
+                 vec_mergeh(t->r, t->r), a, dst_argb);
+  YuvToARGB8_VSX(y1, vec_mergel(t->b, t->b), vec_mergel(t->g, t->g),
+                 vec_mergel(t->r, t->r), a ? &a1 : 0, dst_argb + 32);
+}
+
+// Converts 16 pixels from Y in y0, y1 and U and V terms t0, t1.
+static __inline void Yuv444x16_VSX(v16s y0,
+                                   v16s y1,
+                                   const struct UVTerms_VSX* t0,
+                                   const struct UVTerms_VSX* t1,
+                                   const v8u* a,
+                                   uint8_t* dst_argb) {
+  v8u a1 =
+      a ? (v8u)vec_mergel((v64u)*a, (v64u)*a) : vec_splats((unsigned char)0);
+  YuvToARGB8_VSX(y0, t0->b, t0->g, t0->r, a, dst_argb);
+  YuvToARGB8_VSX(y1, t1->b, t1->g, t1->r, a ? &a1 : 0, dst_argb + 32);
+}
+
+void I210ToARGBRow_VSX(const uint16_t* src_y,
+                       const uint16_t* src_u,
+                       const uint16_t* src_v,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    struct UVTerms_VSX t;
+    UVTermsS_VSX(UVShift_VSX(vec_xl(0, src_u), 2),
+                 UVShift_VSX(vec_xl(0, src_v), 2), &c, &t);
+    Yuv422x16_VSX(Y10_VSX(vec_xl(0, src_y), &c), Y10_VSX(vec_xl(16, src_y), &c),
+                  &t, 0, dst_argb);
+    src_y += 16;
+    src_u += 8;
+    src_v += 8;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void I210AlphaToARGBRow_VSX(const uint16_t* src_y,
+                            const uint16_t* src_u,
+                            const uint16_t* src_v,
+                            const uint16_t* src_a,
+                            uint8_t* dst_argb,
+                            const struct YuvConstants* yuvconstants,
+                            int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    struct UVTerms_VSX t;
+    v8u a = Alpha10_VSX(src_a);
+    UVTermsS_VSX(UVShift_VSX(vec_xl(0, src_u), 2),
+                 UVShift_VSX(vec_xl(0, src_v), 2), &c, &t);
+    Yuv422x16_VSX(Y10_VSX(vec_xl(0, src_y), &c), Y10_VSX(vec_xl(16, src_y), &c),
+                  &t, &a, dst_argb);
+    src_y += 16;
+    src_u += 8;
+    src_v += 8;
+    src_a += 16;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void I410ToARGBRow_VSX(const uint16_t* src_y,
+                       const uint16_t* src_u,
+                       const uint16_t* src_v,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    struct UVTerms_VSX t0, t1;
+    UVTermsS_VSX(UVShift_VSX(vec_xl(0, src_u), 2),
+                 UVShift_VSX(vec_xl(0, src_v), 2), &c, &t0);
+    UVTermsS_VSX(UVShift_VSX(vec_xl(16, src_u), 2),
+                 UVShift_VSX(vec_xl(16, src_v), 2), &c, &t1);
+    Yuv444x16_VSX(Y10_VSX(vec_xl(0, src_y), &c), Y10_VSX(vec_xl(16, src_y), &c),
+                  &t0, &t1, 0, dst_argb);
+    src_y += 16;
+    src_u += 16;
+    src_v += 16;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void I410AlphaToARGBRow_VSX(const uint16_t* src_y,
+                            const uint16_t* src_u,
+                            const uint16_t* src_v,
+                            const uint16_t* src_a,
+                            uint8_t* dst_argb,
+                            const struct YuvConstants* yuvconstants,
+                            int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    struct UVTerms_VSX t0, t1;
+    v8u a = Alpha10_VSX(src_a);
+    UVTermsS_VSX(UVShift_VSX(vec_xl(0, src_u), 2),
+                 UVShift_VSX(vec_xl(0, src_v), 2), &c, &t0);
+    UVTermsS_VSX(UVShift_VSX(vec_xl(16, src_u), 2),
+                 UVShift_VSX(vec_xl(16, src_v), 2), &c, &t1);
+    Yuv444x16_VSX(Y10_VSX(vec_xl(0, src_y), &c), Y10_VSX(vec_xl(16, src_y), &c),
+                  &t0, &t1, &a, dst_argb);
+    src_y += 16;
+    src_u += 16;
+    src_v += 16;
+    src_a += 16;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+// U and V of 8 interleaved 16 bit UV pairs.
+static __inline void SplitUV16_VSX(const uint16_t* src_uv,
+                                   const struct YuvCoefs_VSX* c,
+                                   struct UVTerms_VSX* t) {
+  v8u a = (v8u)vec_xl(0, src_uv);
+  v8u b = (v8u)vec_xl(16, src_uv);
+  UVTermsS_VSX(UVShift_VSX((v16u)SHUFFLE_VSX(a, b, EVEN16_VSX), 8),
+               UVShift_VSX((v16u)SHUFFLE_VSX(a, b, ODD16_VSX), 8), c, t);
+}
+
+void P210ToARGBRow_VSX(const uint16_t* src_y,
+                       const uint16_t* src_uv,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    struct UVTerms_VSX t;
+    SplitUV16_VSX(src_uv, &c, &t);
+    Yuv422x16_VSX(YP16_VSX(vec_xl(0, src_y), &c),
+                  YP16_VSX(vec_xl(16, src_y), &c), &t, 0, dst_argb);
+    src_y += 16;
+    src_uv += 16;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void P410ToARGBRow_VSX(const uint16_t* src_y,
+                       const uint16_t* src_uv,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width) {
+  struct YuvCoefs_VSX c;
+  LoadYuvCoefs_VSX(yuvconstants, &c);
+  do {
+    struct UVTerms_VSX t0, t1;
+    SplitUV16_VSX(src_uv, &c, &t0);
+    SplitUV16_VSX(src_uv + 16, &c, &t1);
+    Yuv444x16_VSX(YP16_VSX(vec_xl(0, src_y), &c),
+                  YP16_VSX(vec_xl(16, src_y), &c), &t0, &t1, 0, dst_argb);
+    src_y += 16;
+    src_uv += 32;
+    dst_argb += 64;
     width -= 16;
   } while (width > 0);
 }
