@@ -52,6 +52,7 @@ set ( ly_common_source_files
   ${ly_src_dir}/row_gcc.cc
   ${ly_src_dir}/row_hvx.cc
   ${ly_src_dir}/row_rvv.cc
+  ${ly_src_dir}/row_vsx.cc
   ${ly_src_dir}/row_wasm.cc
   ${ly_src_dir}/row_win.cc
   ${ly_src_dir}/scale.cc

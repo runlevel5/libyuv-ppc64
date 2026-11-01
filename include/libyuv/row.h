@@ -1331,6 +1331,16 @@ extern "C" {
 #define HAS_YUY2TOYROW_HVX
 #endif
 
+#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
+    defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define HAS_I400TOARGBROW_VSX
+#define HAS_I422ALPHATOARGBROW_VSX
+#define HAS_I422TOARGBROW_VSX
+#define HAS_I444ALPHATOARGBROW_VSX
+#define HAS_I444TOARGBROW_VSX
+#define HAS_J400TOARGBROW_VSX
+#endif
+
 #undef SIMD_ALIGNED
 #if defined(_MSC_VER) && !defined(__CLR_VER) && !defined(__clang__)
 #if defined(VISUALC_HAS_AVX2)
@@ -8548,6 +8558,69 @@ void ARGBToUV444MatrixRow_HVX(const uint8_t* src_argb,
                               uint8_t* dst_v,
                               int width,
                               const struct ArgbConstants* c);
+
+void I422ToARGBRow_VSX(const uint8_t* src_y,
+                       const uint8_t* src_u,
+                       const uint8_t* src_v,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width);
+void I422AlphaToARGBRow_VSX(const uint8_t* src_y,
+                            const uint8_t* src_u,
+                            const uint8_t* src_v,
+                            const uint8_t* src_a,
+                            uint8_t* dst_argb,
+                            const struct YuvConstants* yuvconstants,
+                            int width);
+void I444ToARGBRow_VSX(const uint8_t* src_y,
+                       const uint8_t* src_u,
+                       const uint8_t* src_v,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width);
+void I444AlphaToARGBRow_VSX(const uint8_t* src_y,
+                            const uint8_t* src_u,
+                            const uint8_t* src_v,
+                            const uint8_t* src_a,
+                            uint8_t* dst_argb,
+                            const struct YuvConstants* yuvconstants,
+                            int width);
+void I400ToARGBRow_VSX(const uint8_t* src_y,
+                       uint8_t* dst_argb,
+                       const struct YuvConstants* yuvconstants,
+                       int width);
+void J400ToARGBRow_VSX(const uint8_t* src_y, uint8_t* dst_argb, int width);
+void I422ToARGBRow_Any_VSX(const uint8_t* y_buf,
+                           const uint8_t* u_buf,
+                           const uint8_t* v_buf,
+                           uint8_t* dst_ptr,
+                           const struct YuvConstants* yuvconstants,
+                           int width);
+void I422AlphaToARGBRow_Any_VSX(const uint8_t* y_buf,
+                                const uint8_t* u_buf,
+                                const uint8_t* v_buf,
+                                const uint8_t* a_buf,
+                                uint8_t* dst_ptr,
+                                const struct YuvConstants* yuvconstants,
+                                int width);
+void I444ToARGBRow_Any_VSX(const uint8_t* y_buf,
+                           const uint8_t* u_buf,
+                           const uint8_t* v_buf,
+                           uint8_t* dst_ptr,
+                           const struct YuvConstants* yuvconstants,
+                           int width);
+void I444AlphaToARGBRow_Any_VSX(const uint8_t* y_buf,
+                                const uint8_t* u_buf,
+                                const uint8_t* v_buf,
+                                const uint8_t* a_buf,
+                                uint8_t* dst_ptr,
+                                const struct YuvConstants* yuvconstants,
+                                int width);
+void I400ToARGBRow_Any_VSX(const uint8_t* src_ptr,
+                           uint8_t* dst_ptr,
+                           const struct YuvConstants* param,
+                           int width);
+void J400ToARGBRow_Any_VSX(const uint8_t* src_ptr, uint8_t* dst_ptr, int width);
 
 #ifdef __cplusplus
 }  // extern "C"

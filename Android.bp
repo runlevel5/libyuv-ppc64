@@ -64,6 +64,7 @@ cc_library {
         "source/row_neon.cc",
         "source/row_neon64.cc",
         "source/row_rvv.cc",
+        "source/row_vsx.cc",
         "source/scale.cc",
         "source/scale_any.cc",
         "source/scale_argb.cc",

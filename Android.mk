@@ -41,6 +41,7 @@ LOCAL_SRC_FILES := \
     source/row_neon.cc          \
     source/row_neon64.cc        \
     source/row_rvv.cc           \
+    source/row_vsx.cc           \
     source/row_win.cc           \
     source/scale.cc             \
     source/scale_any.cc         \

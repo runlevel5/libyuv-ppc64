@@ -221,6 +221,14 @@ static int NV24ToARGB(const uint8_t* src_y,
     I444ToARGBRow = I444ToARGBRow_HVX;
   }
 #endif
+#if defined(HAS_I444TOARGBROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    I444ToARGBRow = I444ToARGBRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      I444ToARGBRow = I444ToARGBRow_VSX;
+    }
+  }
+#endif
 
 #if defined(HAS_SPLITUVROW_SSE2)
   if (TestCpuFlag(kCpuHasSSE2)) {

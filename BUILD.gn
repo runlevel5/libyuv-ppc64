@@ -175,6 +175,7 @@ static_library("libyuv_internal") {
     "source/row_common.cc",
     "source/row_gcc.cc",
     "source/row_hvx.cc",
+    "source/row_vsx.cc",
     "source/row_wasm.cc",
     "source/row_win.cc",
     "source/scale.cc",
