@@ -1092,6 +1092,9 @@ ANY21PT(MergeUVRow_16_Any_AVX2, MergeUVRow_16_AVX2, uint16_t, 2, 7)
 #ifdef HAS_MERGEUVROW_16_NEON
 ANY21PT(MergeUVRow_16_Any_NEON, MergeUVRow_16_NEON, uint16_t, 2, 7)
 #endif
+#ifdef HAS_MERGEUVROW_16_VSX
+ANY21PT(MergeUVRow_16_Any_VSX, MergeUVRow_16_VSX, uint16_t, 2, 7)
+#endif
 
 #undef ANY21CT
 
@@ -1637,6 +1640,9 @@ ANY11P(ARGBShuffleRow_Any_AVX2, ARGBShuffleRow_AVX2, const uint8_t*, 4, 4, 15)
 #ifdef HAS_ARGBSHUFFLEROW_NEON
 ANY11P(ARGBShuffleRow_Any_NEON, ARGBShuffleRow_NEON, const uint8_t*, 4, 4, 3)
 #endif
+#ifdef HAS_ARGBSHUFFLEROW_VSX
+ANY11P(ARGBShuffleRow_Any_VSX, ARGBShuffleRow_VSX, const uint8_t*, 4, 4, 7)
+#endif
 #ifdef HAS_ARGBSHUFFLEROW_LSX
 ANY11P(ARGBShuffleRow_Any_LSX, ARGBShuffleRow_LSX, const uint8_t*, 4, 4, 3)
 #endif
@@ -1825,6 +1831,15 @@ ANY11C(Convert16To8Row_Any_NEON,
        uint8_t,
        15)
 #endif
+#ifdef HAS_CONVERT16TO8ROW_VSX
+ANY11C(Convert16To8Row_Any_VSX,
+       Convert16To8Row_VSX,
+       2,
+       1,
+       uint16_t,
+       uint8_t,
+       15)
+#endif
 #ifdef HAS_CONVERT8TO16ROW_SSE2
 ANY11C(Convert8To16Row_Any_SSE2,
        Convert8To16Row_SSE2,
@@ -1846,6 +1861,15 @@ ANY11C(Convert8To16Row_Any_AVX2,
 #ifdef HAS_CONVERT8TO16ROW_NEON
 ANY11C(Convert8To16Row_Any_NEON,
        Convert8To16Row_NEON,
+       1,
+       2,
+       uint8_t,
+       uint16_t,
+       15)
+#endif
+#ifdef HAS_CONVERT8TO16ROW_VSX
+ANY11C(Convert8To16Row_Any_VSX,
+       Convert8To16Row_VSX,
        1,
        2,
        uint8_t,
@@ -2178,6 +2202,9 @@ ANY11HS(HalfRow_16To8_Any_AVX2, HalfRow_16To8_AVX2, uint16_t, uint8_t, 31)
 #ifdef HAS_HALFROW_16TO8_NEON
 ANY11HS(HalfRow_16To8_Any_NEON, HalfRow_16To8_NEON, uint16_t, uint8_t, 15)
 #endif
+#ifdef HAS_HALFROW_16TO8_VSX
+ANY11HS(HalfRow_16To8_Any_VSX, HalfRow_16To8_VSX, uint16_t, uint8_t, 15)
+#endif
 
 #undef ANY11HS
 
@@ -2258,6 +2285,9 @@ ANY11M(MirrorRow_Any_SSSE3, MirrorRow_SSSE3, 1, 15)
 #ifdef HAS_MIRRORROW_NEON
 ANY11M(MirrorRow_Any_NEON, MirrorRow_NEON, 1, 31)
 #endif
+#ifdef HAS_MIRRORROW_VSX
+ANY11M(MirrorRow_Any_VSX, MirrorRow_VSX, 1, 63)
+#endif
 #ifdef HAS_MIRRORROW_LSX
 ANY11M(MirrorRow_Any_LSX, MirrorRow_LSX, 1, 15)
 #endif
@@ -2273,6 +2303,9 @@ ANY11M(MirrorUVRow_Any_SSSE3, MirrorUVRow_SSSE3, 2, 7)
 #ifdef HAS_MIRRORUVROW_NEON
 ANY11M(MirrorUVRow_Any_NEON, MirrorUVRow_NEON, 2, 31)
 #endif
+#ifdef HAS_MIRRORUVROW_VSX
+ANY11M(MirrorUVRow_Any_VSX, MirrorUVRow_VSX, 2, 31)
+#endif
 #ifdef HAS_MIRRORUVROW_LSX
 ANY11M(MirrorUVRow_Any_LSX, MirrorUVRow_LSX, 2, 7)
 #endif
@@ -2287,6 +2320,9 @@ ANY11M(ARGBMirrorRow_Any_SSE2, ARGBMirrorRow_SSE2, 4, 3)
 #endif
 #ifdef HAS_ARGBMIRRORROW_NEON
 ANY11M(ARGBMirrorRow_Any_NEON, ARGBMirrorRow_NEON, 4, 7)
+#endif
+#ifdef HAS_ARGBMIRRORROW_VSX
+ANY11M(ARGBMirrorRow_Any_VSX, ARGBMirrorRow_VSX, 4, 15)
 #endif
 #ifdef HAS_ARGBMIRRORROW_LSX
 ANY11M(ARGBMirrorRow_Any_LSX, ARGBMirrorRow_LSX, 4, 3)
@@ -2339,6 +2375,9 @@ ANY11M(RGB24MirrorRow_Any_WASMSIMD, RGB24MirrorRow_WASMSIMD, 3, 15)
 
 #ifdef HAS_MIRRORROW_16_NEON
 ANY11MT(MirrorRow_16_Any_NEON, MirrorRow_16_NEON, uint16_t, 2, 15)
+#endif
+#ifdef HAS_MIRRORROW_16_VSX
+ANY11MT(MirrorRow_16_Any_VSX, MirrorRow_16_VSX, uint16_t, 2, 31)
 #endif
 #undef ANY11MT
 
@@ -2504,6 +2543,9 @@ ANY12PT(SplitUVRow_16_Any_AVX2, SplitUVRow_16_AVX2, uint16_t, 2, 15)
 
 #ifdef HAS_SPLITUVROW_16_NEON
 ANY12PT(SplitUVRow_16_Any_NEON, SplitUVRow_16_NEON, uint16_t, 2, 7)
+#endif
+#ifdef HAS_SPLITUVROW_16_VSX
+ANY12PT(SplitUVRow_16_Any_VSX, SplitUVRow_16_VSX, uint16_t, 2, 15)
 #endif
 
 #undef ANY21CT

@@ -760,6 +760,208 @@ void RGBToUVMatrixRow_VSX(const uint8_t* src_rgb,
   } while (width > 0);
 }
 
+#define REV8_VSX 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+#define REV16_VSX 14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1
+#define REV32_VSX 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3
+
+// Copies the 64 bytes before src to dst in reverse order of the elements
+// that m reverses within a vector.
+#define MIRROR64_VSX(src, dst, m)                    \
+  do {                                               \
+    v8u m0_ = Load16_VSX(src - 16);                  \
+    v8u m1_ = Load16_VSX(src - 32);                  \
+    v8u m2_ = Load16_VSX(src - 48);                  \
+    v8u m3_ = Load16_VSX(src - 64);                  \
+    Store16_VSX(SHUFFLE_VSX(m0_, m0_, m), dst);      \
+    Store16_VSX(SHUFFLE_VSX(m1_, m1_, m), dst + 16); \
+    Store16_VSX(SHUFFLE_VSX(m2_, m2_, m), dst + 32); \
+    Store16_VSX(SHUFFLE_VSX(m3_, m3_, m), dst + 48); \
+  } while (0)
+
+void MirrorRow_VSX(const uint8_t* src, uint8_t* dst, int width) {
+  src += width;
+  do {
+    MIRROR64_VSX(src, dst, REV8_VSX);
+    src -= 64;
+    dst += 64;
+    width -= 64;
+  } while (width > 0);
+}
+
+void MirrorUVRow_VSX(const uint8_t* src_uv, uint8_t* dst_uv, int width) {
+  src_uv += width * 2;
+  do {
+    MIRROR64_VSX(src_uv, dst_uv, REV16_VSX);
+    src_uv -= 64;
+    dst_uv += 64;
+    width -= 32;
+  } while (width > 0);
+}
+
+void MirrorSplitUVRow_VSX(const uint8_t* src_uv,
+                          uint8_t* dst_u,
+                          uint8_t* dst_v,
+                          int width) {
+  src_uv += width * 2;
+  do {
+    v8u a = Load16_VSX(src_uv - 16);
+    v8u b = Load16_VSX(src_uv - 32);
+    v8u c = Load16_VSX(src_uv - 48);
+    v8u d = Load16_VSX(src_uv - 64);
+    Store16_VSX(SHUFFLE_VSX(a, b, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28, 26, 24, 22,
+                            20, 18, 16),
+                dst_u);
+    Store16_VSX(SHUFFLE_VSX(c, d, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28, 26, 24, 22,
+                            20, 18, 16),
+                dst_u + 16);
+    Store16_VSX(SHUFFLE_VSX(a, b, 15, 13, 11, 9, 7, 5, 3, 1, 31, 29, 27, 25, 23,
+                            21, 19, 17),
+                dst_v);
+    Store16_VSX(SHUFFLE_VSX(c, d, 15, 13, 11, 9, 7, 5, 3, 1, 31, 29, 27, 25, 23,
+                            21, 19, 17),
+                dst_v + 16);
+    src_uv -= 64;
+    dst_u += 32;
+    dst_v += 32;
+    width -= 32;
+  } while (width > 0);
+}
+
+void MirrorRow_16_VSX(const uint16_t* src, uint16_t* dst, int width) {
+  const uint8_t* s = (const uint8_t*)(src + width);
+  uint8_t* d = (uint8_t*)dst;
+  do {
+    MIRROR64_VSX(s, d, REV16_VSX);
+    s -= 64;
+    d += 64;
+    width -= 32;
+  } while (width > 0);
+}
+
+void ARGBMirrorRow_VSX(const uint8_t* src_argb, uint8_t* dst_argb, int width) {
+  src_argb += width * 4;
+  do {
+    MIRROR64_VSX(src_argb, dst_argb, REV32_VSX);
+    src_argb -= 64;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+// The shuffler holds 16 byte indices for 4 pixels, in memory order.
+void ARGBShuffleRow_VSX(const uint8_t* src_argb,
+                        uint8_t* dst_argb,
+                        const uint8_t* shuffler,
+                        int width) {
+  const v8u mask = Load16_VSX(shuffler);
+  do {
+    v8u a = Load16_VSX(src_argb);
+    v8u b = Load16_VSX(src_argb + 16);
+    Store16_VSX(vec_perm(a, a, mask), dst_argb);
+    Store16_VSX(vec_perm(b, b, mask), dst_argb + 16);
+    src_argb += 32;
+    dst_argb += 32;
+    width -= 8;
+  } while (width > 0);
+}
+
+// clamp255((v * scale) >> 16) for 16 lanes.
+static __inline v8u Convert16To8_VSX(v16u a, v16u b, v16u scale) {
+  return vec_packsu(MulHi16_VSX(a, scale), MulHi16_VSX(b, scale));
+}
+
+void Convert16To8Row_VSX(const uint16_t* src_y,
+                         uint8_t* dst_y,
+                         int scale,
+                         int width) {
+  const v16u s = vec_splats((unsigned short)scale);
+  do {
+    v16u a = vec_xl(0, src_y);
+    v16u b = vec_xl(16, src_y);
+    Store16_VSX(Convert16To8_VSX(a, b, s), dst_y);
+    src_y += 16;
+    dst_y += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+void HalfRow_16To8_VSX(const uint16_t* src_uv,
+                       ptrdiff_t src_uv_stride,
+                       uint8_t* dst_uv,
+                       int scale,
+                       int width) {
+  const uint16_t* src_uv1 = src_uv + src_uv_stride;
+  const v16u s = vec_splats((unsigned short)scale);
+  do {
+    v16u a = vec_avg(vec_xl(0, src_uv), vec_xl(0, src_uv1));
+    v16u b = vec_avg(vec_xl(16, src_uv), vec_xl(16, src_uv1));
+    Store16_VSX(Convert16To8_VSX(a, b, s), dst_uv);
+    src_uv += 16;
+    src_uv1 += 16;
+    dst_uv += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+// Duplicating each byte into both halves of a lane gives v * 0x0101.
+void Convert8To16Row_VSX(const uint8_t* src_y,
+                         uint16_t* dst_y,
+                         int bits,
+                         int width) {
+  const v16u shift = vec_splats((unsigned short)(16 - bits));
+  do {
+    v8u a = Load16_VSX(src_y);
+    vec_xst(vec_sr((v16u)SHUFFLE_VSX(a, a, DUP2_LO_VSX), shift), 0, dst_y);
+    vec_xst(vec_sr((v16u)SHUFFLE_VSX(a, a, DUP2_HI_VSX), shift), 16, dst_y);
+    src_y += 16;
+    dst_y += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+void MergeUVRow_16_VSX(const uint16_t* src_u,
+                       const uint16_t* src_v,
+                       uint16_t* dst_uv,
+                       int depth,
+                       int width) {
+  const v16u shift = vec_splats((unsigned short)(16 - depth));
+  do {
+    v16u u = vec_sl(vec_xl(0, src_u), shift);
+    v16u v = vec_sl(vec_xl(0, src_v), shift);
+    vec_xst(vec_mergeh(u, v), 0, dst_uv);
+    vec_xst(vec_mergel(u, v), 16, dst_uv);
+    src_u += 8;
+    src_v += 8;
+    dst_uv += 16;
+    width -= 8;
+  } while (width > 0);
+}
+
+#define EVEN16_VSX 0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29
+#define ODD16_VSX 2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31
+
+void SplitUVRow_16_VSX(const uint16_t* src_uv,
+                       uint16_t* dst_u,
+                       uint16_t* dst_v,
+                       int depth,
+                       int width) {
+  const v16u shift = vec_splats((unsigned short)(16 - depth));
+  do {
+    v8u a0 = (v8u)vec_xl(0, src_uv);
+    v8u a1 = (v8u)vec_xl(16, src_uv);
+    v8u a2 = (v8u)vec_xl(32, src_uv);
+    v8u a3 = (v8u)vec_xl(48, src_uv);
+    vec_xst(vec_sr((v16u)SHUFFLE_VSX(a0, a1, EVEN16_VSX), shift), 0, dst_u);
+    vec_xst(vec_sr((v16u)SHUFFLE_VSX(a2, a3, EVEN16_VSX), shift), 16, dst_u);
+    vec_xst(vec_sr((v16u)SHUFFLE_VSX(a0, a1, ODD16_VSX), shift), 0, dst_v);
+    vec_xst(vec_sr((v16u)SHUFFLE_VSX(a2, a3, ODD16_VSX), shift), 16, dst_v);
+    src_uv += 32;
+    dst_u += 16;
+    dst_v += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 }  // namespace libyuv

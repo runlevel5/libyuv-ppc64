@@ -1334,10 +1334,15 @@ extern "C" {
 #if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
     defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define HAS_ARGBATTENUATEROW_VSX
+#define HAS_ARGBMIRRORROW_VSX
+#define HAS_ARGBSHUFFLEROW_VSX
 #define HAS_ARGBTOUV444MATRIXROW_VSX
 #define HAS_ARGBTOUVMATRIXROW_VSX
 #define HAS_ARGBTOYMATRIXROW_VSX
 #define HAS_ARGBUNATTENUATEROW_VSX
+#define HAS_CONVERT16TO8ROW_VSX
+#define HAS_CONVERT8TO16ROW_VSX
+#define HAS_HALFROW_16TO8_VSX
 #define HAS_I400TOARGBROW_VSX
 #define HAS_I422ALPHATOARGBROW_VSX
 #define HAS_I422TOARGBROW_VSX
@@ -1345,11 +1350,17 @@ extern "C" {
 #define HAS_I444TOARGBROW_VSX
 #define HAS_INTERPOLATEROW_VSX
 #define HAS_J400TOARGBROW_VSX
+#define HAS_MERGEUVROW_16_VSX
+#define HAS_MIRRORROW_16_VSX
+#define HAS_MIRRORROW_VSX
+#define HAS_MIRRORSPLITUVROW_VSX
+#define HAS_MIRRORUVROW_VSX
 #define HAS_NV12TOARGBROW_VSX
 #define HAS_NV21TOARGBROW_VSX
 #define HAS_RGBTOUV444MATRIXROW_VSX
 #define HAS_RGBTOUVMATRIXROW_VSX
 #define HAS_RGBTOYMATRIXROW_VSX
+#define HAS_SPLITUVROW_16_VSX
 #endif
 
 #undef SIMD_ALIGNED
@@ -8734,6 +8745,74 @@ void RGBToUVMatrixRow_Any_VSX(const uint8_t* src_rgb,
                               uint8_t* dst_v,
                               int width,
                               const struct ArgbConstants* c);
+void MirrorRow_VSX(const uint8_t* src, uint8_t* dst, int width);
+void MirrorRow_Any_VSX(const uint8_t* src_ptr, uint8_t* dst_ptr, int width);
+void MirrorUVRow_VSX(const uint8_t* src_uv, uint8_t* dst_uv, int width);
+void MirrorUVRow_Any_VSX(const uint8_t* src_ptr, uint8_t* dst_ptr, int width);
+void MirrorSplitUVRow_VSX(const uint8_t* src_uv,
+                          uint8_t* dst_u,
+                          uint8_t* dst_v,
+                          int width);
+void MirrorRow_16_VSX(const uint16_t* src, uint16_t* dst, int width);
+void MirrorRow_16_Any_VSX(const uint16_t* src_ptr,
+                          uint16_t* dst_ptr,
+                          int width);
+void ARGBMirrorRow_VSX(const uint8_t* src_argb, uint8_t* dst_argb, int width);
+void ARGBMirrorRow_Any_VSX(const uint8_t* src_ptr, uint8_t* dst_ptr, int width);
+void ARGBShuffleRow_VSX(const uint8_t* src_argb,
+                        uint8_t* dst_argb,
+                        const uint8_t* shuffler,
+                        int width);
+void ARGBShuffleRow_Any_VSX(const uint8_t* src_ptr,
+                            uint8_t* dst_ptr,
+                            const uint8_t* param,
+                            int width);
+void Convert16To8Row_VSX(const uint16_t* src_y,
+                         uint8_t* dst_y,
+                         int scale,
+                         int width);
+void Convert16To8Row_Any_VSX(const uint16_t* src_ptr,
+                             uint8_t* dst_ptr,
+                             int scale,
+                             int width);
+void HalfRow_16To8_VSX(const uint16_t* src_uv,
+                       ptrdiff_t src_uv_stride,
+                       uint8_t* dst_uv,
+                       int scale,
+                       int width);
+void HalfRow_16To8_Any_VSX(const uint16_t* src_ptr,
+                           ptrdiff_t src_stride,
+                           uint8_t* dst_ptr,
+                           int scale,
+                           int width);
+void Convert8To16Row_VSX(const uint8_t* src_y,
+                         uint16_t* dst_y,
+                         int bits,
+                         int width);
+void Convert8To16Row_Any_VSX(const uint8_t* src_y,
+                             uint16_t* dst_y,
+                             int bits,
+                             int width);
+void MergeUVRow_16_VSX(const uint16_t* src_u,
+                       const uint16_t* src_v,
+                       uint16_t* dst_uv,
+                       int depth,
+                       int width);
+void MergeUVRow_16_Any_VSX(const uint16_t* src_u,
+                           const uint16_t* src_v,
+                           uint16_t* dst_uv,
+                           int depth,
+                           int width);
+void SplitUVRow_16_VSX(const uint16_t* src_uv,
+                       uint16_t* dst_u,
+                       uint16_t* dst_v,
+                       int depth,
+                       int width);
+void SplitUVRow_16_Any_VSX(const uint16_t* src_uv,
+                           uint16_t* dst_u,
+                           uint16_t* dst_v,
+                           int depth,
+                           int width);
 
 #ifdef __cplusplus
 }  // extern "C"

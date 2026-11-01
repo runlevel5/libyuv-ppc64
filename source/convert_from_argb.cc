@@ -2664,6 +2664,14 @@ int ARGBToP010Matrix(const uint8_t* src_argb,
     }
   }
 #endif
+#if defined(HAS_CONVERT8TO16ROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    Convert8To16Row = Convert8To16Row_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      Convert8To16Row = Convert8To16Row_VSX;
+    }
+  }
+#endif
 #if defined(HAS_MULTIPLYROW_16_AVX2)
   if (TestCpuFlag(kCpuHasAVX2)) {
     MultiplyRow_16 = MultiplyRow_16_Any_AVX2;
@@ -3119,6 +3127,14 @@ int ARGBToP210Matrix(const uint8_t* src_argb,
     }
   }
 #endif
+#if defined(HAS_CONVERT8TO16ROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    Convert8To16Row = Convert8To16Row_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      Convert8To16Row = Convert8To16Row_VSX;
+    }
+  }
+#endif
 #if defined(HAS_MULTIPLYROW_16_AVX2)
   if (TestCpuFlag(kCpuHasAVX2)) {
     MultiplyRow_16 = MultiplyRow_16_Any_AVX2;
@@ -3542,6 +3558,14 @@ int ARGBToP410Matrix(const uint8_t* src_argb,
     Convert8To16Row = Convert8To16Row_Any_WASMSIMD;
     if (IS_ALIGNED(width, 16)) {
       Convert8To16Row = Convert8To16Row_WASMSIMD;
+    }
+  }
+#endif
+#if defined(HAS_CONVERT8TO16ROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    Convert8To16Row = Convert8To16Row_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      Convert8To16Row = Convert8To16Row_VSX;
     }
   }
 #endif
