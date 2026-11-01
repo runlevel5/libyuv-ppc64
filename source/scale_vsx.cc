@@ -11,8 +11,7 @@
 #include "libyuv/row.h"
 #include "libyuv/scale_row.h"
 
-#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
-    defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8)
 
 #include <altivec.h>
 #include <string.h>
@@ -49,10 +48,16 @@ static __inline void Store16_VSX(v8u v, uint8_t* p) {
 
 // Picks the high byte of each 16-bit lane of e and o, interleaved, so the
 // bytes come out in the order they went into vec_mule and vec_mulo. The
-// high byte is the odd byte in little-endian byte order.
+// high byte is the odd byte in little-endian byte order and the even byte in
+// big-endian.
 static __inline v8u HighBytes16_VSX(v16u e, v16u o) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return SHUFFLE_VSX((v8u)e, (v8u)o, 1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27,
                      13, 29, 15, 31);
+#else
+  return SHUFFLE_VSX((v8u)e, (v8u)o, 0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26,
+                     12, 28, 14, 30);
+#endif
 }
 
 static __inline unsigned long long Load8u_VSX(const uint8_t* p) {
@@ -270,11 +275,8 @@ void ScaleARGBFilterCols_VSX(uint8_t* dst_argb,
     v8u nf2 = vec_xor(f2, kfe);
     v16u e = vec_add(vec_mule(a, nf2), vec_mule(b, f2));
     v16u o = vec_add(vec_mulo(a, nf2), vec_mulo(b, f2));
-    // The high byte of twice the sum is the sum >> 7, which is the odd byte
-    // in little-endian byte order.
-    Store16_VSX(SHUFFLE_VSX((v8u)e, (v8u)o, 1, 17, 3, 19, 5, 21, 7, 23, 9, 25,
-                            11, 27, 13, 29, 15, 31),
-                dst_argb);
+    // The high byte of twice the sum is the sum >> 7.
+    Store16_VSX(HighBytes16_VSX(e, o), dst_argb);
     xs = vec_add(xs, dx4);
     ux += udx * 4;
     dst_argb += 16;
@@ -286,19 +288,32 @@ void ScaleARGBFilterCols_VSX(uint8_t* dst_argb,
 static __inline v8u Bits8To15_VSX(v32u a, v32u b, v32u c, v32u d) {
   v8u lo = (v8u)vec_pack(a, b);
   v8u hi = (v8u)vec_pack(c, d);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return SHUFFLE_VSX(lo, hi, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27,
                      29, 31);
+#else
+  return SHUFFLE_VSX(lo, hi, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26,
+                     28, 30);
+#endif
 }
 
 // Zero extends the first or last 8 bytes of v to 16 bits.
 static __inline v16u Widen8Lo_VSX(v8u v) {
   v8u zero = vec_splats((unsigned char)0);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return (v16u)vec_mergeh(v, zero);
+#else
+  return (v16u)vec_mergeh(zero, v);
+#endif
 }
 
 static __inline v16u Widen8Hi_VSX(v8u v) {
   v8u zero = vec_splats((unsigned char)0);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return (v16u)vec_mergel(v, zero);
+#else
+  return (v16u)vec_mergel(zero, v);
+#endif
 }
 
 #define ODD_BYTES_VSX 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31
@@ -707,8 +722,13 @@ void ScaleFilterCols_VSX(uint8_t* dst_ptr,
 // Picks the high byte of each 16-bit lane of p and q, interleaved in pairs
 // of lanes: p0, p1, q0, q1, p2, p3, q2, q3 and so on.
 static __inline v8u HighBytes16Pairs_VSX(v16u p, v16u q) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return SHUFFLE_VSX((v8u)p, (v8u)q, 1, 3, 17, 19, 5, 7, 21, 23, 9, 11, 25, 27,
                      13, 15, 29, 31);
+#else
+  return SHUFFLE_VSX((v8u)p, (v8u)q, 0, 2, 16, 18, 4, 6, 20, 22, 8, 10, 24, 26,
+                     12, 14, 28, 30);
+#endif
 }
 
 void ScaleRowUp2_Linear_VSX(const uint8_t* src_ptr,

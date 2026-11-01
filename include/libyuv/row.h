@@ -1331,8 +1331,7 @@ extern "C" {
 #define HAS_YUY2TOYROW_HVX
 #endif
 
-#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
-    defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8)
 #define HAS_AB64TOARGBROW_VSX
 #define HAS_ABGRTOAR30ROW_VSX
 #define HAS_AR30TOAB30ROW_VSX

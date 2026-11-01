@@ -206,8 +206,7 @@ extern "C" {
 #endif
 
 // The following are available for WebAssembly SIMD128:
-#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
-    defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8)
 #define HAS_SCALEADDROW_VSX
 #define HAS_SCALEARGBCOLS_VSX
 #define HAS_SCALEARGBCOLSUP2_VSX

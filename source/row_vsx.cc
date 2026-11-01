@@ -10,8 +10,7 @@
 
 #include "libyuv/row.h"
 
-#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
-    defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8)
 
 #include <altivec.h>
 #include <string.h>
@@ -64,20 +63,32 @@ static __inline void Store16_VSX(v8u v, uint8_t* p) {
 #define DUP4_HI_VSX 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7
 
 // a * b >> 16 for each lane. The shuffle picks the high half of each 32-bit
-// product, which is the odd 16-bit half in little-endian byte order.
+// product, which is the second 16-bit half in little-endian byte order and
+// the first in big-endian.
 static __inline v16u MulHi16_VSX(v16u a, v16u b) {
   v8u e = (v8u)vec_mule(a, b);
   v8u o = (v8u)vec_mulo(a, b);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return (v16u)SHUFFLE_VSX(e, o, 2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14,
                            15, 30, 31);
+#else
+  return (v16u)SHUFFLE_VSX(e, o, 0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12,
+                           13, 28, 29);
+#endif
 }
 
 // Picks the high byte of each 16-bit lane of e and o, interleaved, so the
 // bytes come out in the order they went into vec_mule and vec_mulo. The
-// high byte is the odd byte in little-endian byte order.
+// high byte is the odd byte in little-endian byte order and the even byte in
+// big-endian.
 static __inline v8u HighBytes16_VSX(v16u e, v16u o) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return SHUFFLE_VSX((v8u)e, (v8u)o, 1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27,
                      13, 29, 15, 31);
+#else
+  return SHUFFLE_VSX((v8u)e, (v8u)o, 0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26,
+                     12, 28, 14, 30);
+#endif
 }
 
 // Stores 8 ARGB pixels from B and G of each pixel in bg, and R and A in ra.
@@ -578,8 +589,13 @@ void InterpolateRow_VSX(uint8_t* dst_ptr,
 static __inline v8u Bits8To15_VSX(v32u a, v32u b, v32u c, v32u d) {
   v8u lo = (v8u)vec_pack(a, b);
   v8u hi = (v8u)vec_pack(c, d);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return SHUFFLE_VSX(lo, hi, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27,
                      29, 31);
+#else
+  return SHUFFLE_VSX(lo, hi, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26,
+                     28, 30);
+#endif
 }
 
 struct ArgbCoefs_VSX {
@@ -1242,24 +1258,44 @@ void P410ToARGBRow_VSX(const uint16_t* src_y,
 // The packed 16 and 32 bit formats are built in lanes holding the
 // little-endian value of their bytes, the way the C rows read them.
 static __inline v32u LE32_VSX(v8u v) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return (v32u)v;
+#else
+  return (v32u)SHUFFLE_VSX(v, v, REV32B_VSX);
+#endif
 }
 
 static __inline v8u FromLE32_VSX(v32u v) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return (v8u)v;
+#else
+  return SHUFFLE_VSX((v8u)v, (v8u)v, REV32B_VSX);
+#endif
 }
 
 static __inline v16u LE16_VSX(v8u v) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return (v16u)v;
+#else
+  return (v16u)SHUFFLE_VSX(v, v, REV16B_VSX);
+#endif
 }
 
 static __inline v8u FromLE16_VSX(v16u v) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return (v8u)v;
+#else
+  return SHUFFLE_VSX((v8u)v, (v8u)v, REV16B_VSX);
+#endif
 }
 
 // The high byte of each 16-bit lane of a and then b.
 static __inline v8u HighBytesSeq_VSX(v16u a, v16u b) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return SHUFFLE_VSX((v8u)a, (v8u)b, ODD_BYTES_VSX);
+#else
+  return SHUFFLE_VSX((v8u)a, (v8u)b, EVEN_BYTES_VSX);
+#endif
 }
 
 void ARGBToRGB24Row_VSX(const uint8_t* src_argb, uint8_t* dst_rgb, int width) {
