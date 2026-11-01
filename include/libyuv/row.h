@@ -1333,6 +1333,8 @@ extern "C" {
 
 #if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
     defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define HAS_ARGBATTENUATEROW_VSX
+#define HAS_ARGBUNATTENUATEROW_VSX
 #define HAS_I400TOARGBROW_VSX
 #define HAS_I422ALPHATOARGBROW_VSX
 #define HAS_I422TOARGBROW_VSX
@@ -8621,6 +8623,18 @@ void I400ToARGBRow_Any_VSX(const uint8_t* src_ptr,
                            const struct YuvConstants* param,
                            int width);
 void J400ToARGBRow_Any_VSX(const uint8_t* src_ptr, uint8_t* dst_ptr, int width);
+void ARGBAttenuateRow_VSX(const uint8_t* src_argb,
+                          uint8_t* dst_argb,
+                          int width);
+void ARGBUnattenuateRow_VSX(const uint8_t* src_argb,
+                            uint8_t* dst_argb,
+                            int width);
+void ARGBAttenuateRow_Any_VSX(const uint8_t* src_ptr,
+                              uint8_t* dst_ptr,
+                              int width);
+void ARGBUnattenuateRow_Any_VSX(const uint8_t* src_ptr,
+                                uint8_t* dst_ptr,
+                                int width);
 
 #ifdef __cplusplus
 }  // extern "C"

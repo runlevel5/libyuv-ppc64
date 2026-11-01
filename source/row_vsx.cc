@@ -71,6 +71,14 @@ static __inline v16u MulHi16_VSX(v16u a, v16u b) {
                            15, 30, 31);
 }
 
+// Picks the high byte of each 16-bit lane of e and o, interleaved, so the
+// bytes come out in the order they went into vec_mule and vec_mulo. The
+// high byte is the odd byte in little-endian byte order.
+static __inline v8u HighBytes16_VSX(v16u e, v16u o) {
+  return SHUFFLE_VSX((v8u)e, (v8u)o, 1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27,
+                     13, 29, 15, 31);
+}
+
 // Stores 8 ARGB pixels from B and G of each pixel in bg, and R and A in ra.
 static __inline void StoreARGB8_VSX(v8u bg, v8u ra, uint8_t* dst_argb) {
   Store16_VSX(SHUFFLE_VSX(bg, ra, 0, 8, 16, 24, 1, 9, 17, 25, 2, 10, 18, 26, 3,
@@ -312,6 +320,117 @@ void J400ToARGBRow_VSX(const uint8_t* src_y, uint8_t* dst_argb, int width) {
     src_y += 32;
     dst_argb += 128;
     width -= 32;
+  } while (width > 0);
+}
+
+static const v8u kARGBAlphaMask_VSX = {0, 0, 0, 0xff, 0, 0, 0, 0xff,
+                                       0, 0, 0, 0xff, 0, 0, 0, 0xff};
+
+// (f * a + 255) >> 8 for B, G and R of 4 pixels, keeping A.
+static __inline v8u Attenuate4_VSX(v8u argb) {
+  v16u k255 = vec_splats((unsigned short)255);
+  v8u a = SHUFFLE_VSX(argb, argb, 3, 3, 3, 3, 7, 7, 7, 7, 11, 11, 11, 11, 15,
+                      15, 15, 15);
+  v16u e = vec_add(vec_mule(argb, a), k255);
+  v16u o = vec_add(vec_mulo(argb, a), k255);
+  return vec_sel(HighBytes16_VSX(e, o), argb, kARGBAlphaMask_VSX);
+}
+
+void ARGBAttenuateRow_VSX(const uint8_t* src_argb,
+                          uint8_t* dst_argb,
+                          int width) {
+  do {
+    v8u p0 = Load16_VSX(src_argb);
+    v8u p1 = Load16_VSX(src_argb + 16);
+    v8u p2 = Load16_VSX(src_argb + 32);
+    v8u p3 = Load16_VSX(src_argb + 48);
+    Store16_VSX(Attenuate4_VSX(p0), dst_argb);
+    Store16_VSX(Attenuate4_VSX(p1), dst_argb + 16);
+    Store16_VSX(Attenuate4_VSX(p2), dst_argb + 32);
+    Store16_VSX(Attenuate4_VSX(p3), dst_argb + 48);
+    src_argb += 64;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+// fixed_invtbl8[a] & 0xffff in all four 16-bit lanes of a doubleword, so
+// that each pixel needs one load.
+#define INV4_VSX(a) (0x0001000100010001ULL * (0x10000 / (a)))
+#define INV4X8_VSX(a)                                             \
+  INV4_VSX(a), INV4_VSX(a + 1), INV4_VSX(a + 2), INV4_VSX(a + 3), \
+      INV4_VSX(a + 4), INV4_VSX(a + 5), INV4_VSX(a + 6), INV4_VSX(a + 7)
+static const unsigned long long kInvAlpha4_VSX[256] = {0,
+                                                       0xffffffffffffffffULL,
+                                                       INV4_VSX(2),
+                                                       INV4_VSX(3),
+                                                       INV4_VSX(4),
+                                                       INV4_VSX(5),
+                                                       INV4_VSX(6),
+                                                       INV4_VSX(7),
+                                                       INV4X8_VSX(8),
+                                                       INV4X8_VSX(16),
+                                                       INV4X8_VSX(24),
+                                                       INV4X8_VSX(32),
+                                                       INV4X8_VSX(40),
+                                                       INV4X8_VSX(48),
+                                                       INV4X8_VSX(56),
+                                                       INV4X8_VSX(64),
+                                                       INV4X8_VSX(72),
+                                                       INV4X8_VSX(80),
+                                                       INV4X8_VSX(88),
+                                                       INV4X8_VSX(96),
+                                                       INV4X8_VSX(104),
+                                                       INV4X8_VSX(112),
+                                                       INV4X8_VSX(120),
+                                                       INV4X8_VSX(128),
+                                                       INV4X8_VSX(136),
+                                                       INV4X8_VSX(144),
+                                                       INV4X8_VSX(152),
+                                                       INV4X8_VSX(160),
+                                                       INV4X8_VSX(168),
+                                                       INV4X8_VSX(176),
+                                                       INV4X8_VSX(184),
+                                                       INV4X8_VSX(192),
+                                                       INV4X8_VSX(200),
+                                                       INV4X8_VSX(208),
+                                                       INV4X8_VSX(216),
+                                                       INV4X8_VSX(224),
+                                                       INV4X8_VSX(232),
+                                                       INV4X8_VSX(240),
+                                                       INV4_VSX(248),
+                                                       INV4_VSX(249),
+                                                       INV4_VSX(250),
+                                                       INV4_VSX(251),
+                                                       INV4_VSX(252),
+                                                       INV4_VSX(253),
+                                                       INV4_VSX(254),
+                                                       0x0100010001000100ULL};
+#undef INV4X8_VSX
+#undef INV4_VSX
+
+// Unattenuates 4 pixels with their inverse alphas from kInvAlpha4_VSX.
+static __inline v8u Unattenuate4_VSX(v8u argb, v64u ia01, v64u ia23) {
+  v16u lo = MulHi16_VSX((v16u)vec_mergeh(argb, argb), (v16u)ia01);
+  v16u hi = MulHi16_VSX((v16u)vec_mergel(argb, argb), (v16u)ia23);
+  return vec_sel(vec_packsu(lo, hi), argb, kARGBAlphaMask_VSX);
+}
+
+void ARGBUnattenuateRow_VSX(const uint8_t* src_argb,
+                            uint8_t* dst_argb,
+                            int width) {
+  do {
+    v8u p0 = Load16_VSX(src_argb);
+    v8u p1 = Load16_VSX(src_argb + 16);
+    v64u ia0 = {kInvAlpha4_VSX[src_argb[3]], kInvAlpha4_VSX[src_argb[7]]};
+    v64u ia1 = {kInvAlpha4_VSX[src_argb[11]], kInvAlpha4_VSX[src_argb[15]]};
+    v64u ia2 = {kInvAlpha4_VSX[src_argb[19]], kInvAlpha4_VSX[src_argb[23]]};
+    v64u ia3 = {kInvAlpha4_VSX[src_argb[27]], kInvAlpha4_VSX[src_argb[31]]};
+    Store16_VSX(Unattenuate4_VSX(p0, ia0, ia1), dst_argb);
+    Store16_VSX(Unattenuate4_VSX(p1, ia2, ia3), dst_argb + 16);
+    src_argb += 32;
+    dst_argb += 32;
+    width -= 8;
   } while (width > 0);
 }
 

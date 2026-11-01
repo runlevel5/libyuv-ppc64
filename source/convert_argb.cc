@@ -2660,6 +2660,14 @@ int I420AlphaToARGBMatrix(const uint8_t* src_y,
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     I422AlphaToARGBRow(src_y, src_u, src_v, src_a, dst_argb, yuvconstants,
@@ -2850,6 +2858,14 @@ int I422AlphaToARGBMatrix(const uint8_t* src_y,
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     I422AlphaToARGBRow(src_y, src_u, src_v, src_a, dst_argb, yuvconstants,
@@ -3020,6 +3036,14 @@ int I444AlphaToARGBMatrix(const uint8_t* src_y,
 #if defined(HAS_ARGBATTENUATEROW_HVX)
   if (TestCpuFlag(kCpuHasHVX)) {
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
+  }
+#endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
   }
 #endif
 
@@ -3296,6 +3320,14 @@ int I010AlphaToARGBMatrix(const uint16_t* src_y,
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     I210AlphaToARGBRow(src_y, src_u, src_v, src_a, dst_argb, yuvconstants,
@@ -3443,6 +3475,14 @@ int I210AlphaToARGBMatrix(const uint16_t* src_y,
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     I210AlphaToARGBRow(src_y, src_u, src_v, src_a, dst_argb, yuvconstants,
@@ -3586,6 +3626,14 @@ int I410AlphaToARGBMatrix(const uint16_t* src_y,
 #if defined(HAS_ARGBATTENUATEROW_HVX)
   if (TestCpuFlag(kCpuHasHVX)) {
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
+  }
+#endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
   }
 #endif
 
@@ -8592,6 +8640,14 @@ static int I420AlphaToARGBMatrixBilinear(
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
+  }
+#endif
 
 #if defined(HAS_SCALEROWUP2_BILINEAR_SSE2)
   if (TestCpuFlag(kCpuHasSSE2)) {
@@ -8832,6 +8888,14 @@ static int I422AlphaToARGBMatrixLinear(const uint8_t* src_y,
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
+  }
+#endif
 
 #if defined(HAS_SCALEROWUP2_LINEAR_SSE2)
   if (TestCpuFlag(kCpuHasSSE2)) {
@@ -9017,6 +9081,14 @@ static int I010AlphaToARGBMatrixBilinear(
 #if defined(HAS_ARGBATTENUATEROW_HVX)
   if (TestCpuFlag(kCpuHasHVX)) {
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
+  }
+#endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
   }
 #endif
 
@@ -9226,6 +9298,14 @@ static int I210AlphaToARGBMatrixLinear(const uint16_t* src_y,
 #if defined(HAS_ARGBATTENUATEROW_HVX)
   if (TestCpuFlag(kCpuHasHVX)) {
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
+  }
+#endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
   }
 #endif
 

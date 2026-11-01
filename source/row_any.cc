@@ -1406,6 +1406,12 @@ ANY11(ARGBUnattenuateRow_Any_NEON, ARGBUnattenuateRow_NEON, 0, 4, 4, 3)
 #ifdef HAS_ARGBATTENUATEROW_LSX
 ANY11(ARGBAttenuateRow_Any_LSX, ARGBAttenuateRow_LSX, 0, 4, 4, 3)
 #endif
+#ifdef HAS_ARGBATTENUATEROW_VSX
+ANY11(ARGBAttenuateRow_Any_VSX, ARGBAttenuateRow_VSX, 0, 4, 4, 15)
+#endif
+#ifdef HAS_ARGBUNATTENUATEROW_VSX
+ANY11(ARGBUnattenuateRow_Any_VSX, ARGBUnattenuateRow_VSX, 0, 4, 4, 7)
+#endif
 #ifdef HAS_ARGBATTENUATEROW_LASX
 ANY11(ARGBAttenuateRow_Any_LASX, ARGBAttenuateRow_LASX, 0, 4, 4, 7)
 #endif

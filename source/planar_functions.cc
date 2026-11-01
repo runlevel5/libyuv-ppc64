@@ -4678,6 +4678,14 @@ int ARGBAttenuate(const uint8_t* src_argb,
     ARGBAttenuateRow = ARGBAttenuateRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     ARGBAttenuateRow(src_argb, dst_argb, width);
@@ -4735,6 +4743,14 @@ int ARGBUnattenuate(const uint8_t* src_argb,
     ARGBUnattenuateRow = ARGBUnattenuateRow_Any_NEON;
     if (IS_ALIGNED(width, 4)) {
       ARGBUnattenuateRow = ARGBUnattenuateRow_NEON;
+    }
+  }
+#endif
+#if defined(HAS_ARGBUNATTENUATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBUnattenuateRow = ARGBUnattenuateRow_Any_VSX;
+    if (IS_ALIGNED(width, 8)) {
+      ARGBUnattenuateRow = ARGBUnattenuateRow_VSX;
     }
   }
 #endif
