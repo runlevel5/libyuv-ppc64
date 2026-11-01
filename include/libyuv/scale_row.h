@@ -206,6 +206,13 @@ extern "C" {
 #endif
 
 // The following are available for WebAssembly SIMD128:
+#if !defined(LIBYUV_DISABLE_VMX) && defined(__ALTIVEC__) &&                  \
+    !(defined(__VSX__) && defined(_ARCH_PWR8)) && defined(__BYTE_ORDER__) && \
+    __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define HAS_SCALEARGBCOLSUP2_VMX
+#define HAS_SCALEARGBROWDOWN2_VMX
+#endif
+
 #if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8)
 #define HAS_SCALEADDROW_VSX
 #define HAS_SCALEARGBCOLS_VSX
@@ -2335,6 +2342,36 @@ void ScaleUVRowUp2_Bilinear_Any_VSX(const uint8_t* src_ptr,
                                     uint8_t* dst_ptr,
                                     ptrdiff_t dst_stride,
                                     int dst_width);
+
+void ScaleARGBRowDown2_VMX(const uint8_t* src_argb,
+                           ptrdiff_t src_stride,
+                           uint8_t* dst_argb,
+                           int dst_width);
+void ScaleARGBRowDown2_Any_VMX(const uint8_t* src_ptr,
+                               ptrdiff_t src_stride,
+                               uint8_t* dst_ptr,
+                               int dst_width);
+void ScaleARGBRowDown2Linear_VMX(const uint8_t* src_argb,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst_argb,
+                                 int dst_width);
+void ScaleARGBRowDown2Linear_Any_VMX(const uint8_t* src_ptr,
+                                     ptrdiff_t src_stride,
+                                     uint8_t* dst_ptr,
+                                     int dst_width);
+void ScaleARGBRowDown2Box_VMX(const uint8_t* src_argb,
+                              ptrdiff_t src_stride,
+                              uint8_t* dst_argb,
+                              int dst_width);
+void ScaleARGBRowDown2Box_Any_VMX(const uint8_t* src_ptr,
+                                  ptrdiff_t src_stride,
+                                  uint8_t* dst_ptr,
+                                  int dst_width);
+void ScaleARGBColsUp2_VMX(uint8_t* dst_argb,
+                          const uint8_t* src_argb,
+                          int dst_width,
+                          int x,
+                          int dx);
 
 #ifdef __cplusplus
 }  // extern "C"

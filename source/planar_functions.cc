@@ -4777,6 +4777,14 @@ int ARGBAttenuate(const uint8_t* src_argb,
     }
   }
 #endif
+#if defined(HAS_ARGBATTENUATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    ARGBAttenuateRow = ARGBAttenuateRow_Any_VMX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBAttenuateRow = ARGBAttenuateRow_VMX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     ARGBAttenuateRow(src_argb, dst_argb, width);
@@ -5611,6 +5619,14 @@ int InterpolatePlane(const uint8_t* src0,
     InterpolateRow = InterpolateRow_Any_VSX;
     if (IS_ALIGNED(width, 32)) {
       InterpolateRow = InterpolateRow_VSX;
+    }
+  }
+#endif
+#if defined(HAS_INTERPOLATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    InterpolateRow = InterpolateRow_Any_VMX;
+    if (IS_ALIGNED(width, 32)) {
+      InterpolateRow = InterpolateRow_VMX;
     }
   }
 #endif
@@ -7132,6 +7148,14 @@ int UYVYToNV12(const uint8_t* src_uyvy,
     InterpolateRow = InterpolateRow_Any_VSX;
     if (IS_ALIGNED(awidth, 32)) {
       InterpolateRow = InterpolateRow_VSX;
+    }
+  }
+#endif
+#if defined(HAS_INTERPOLATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    InterpolateRow = InterpolateRow_Any_VMX;
+    if (IS_ALIGNED(awidth, 32)) {
+      InterpolateRow = InterpolateRow_VMX;
     }
   }
 #endif

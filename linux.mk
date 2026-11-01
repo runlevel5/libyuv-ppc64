@@ -49,6 +49,7 @@ LOCAL_OBJ_FILES := \
 	source/row_neon.o          \
 	source/row_neon64.o        \
 	source/row_rvv.o           \
+	source/row_vmx.o           \
 	source/row_vsx.o           \
 	source/row_win.o           \
 	source/scale.o             \
@@ -63,6 +64,7 @@ LOCAL_OBJ_FILES := \
 	source/scale_rgb.o         \
 	source/scale_rvv.o         \
 	source/scale_uv.o          \
+	source/scale_vmx.o         \
 	source/scale_vsx.o         \
 	source/scale_win.o         \
 	source/video_common.o

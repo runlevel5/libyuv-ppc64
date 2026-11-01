@@ -188,6 +188,14 @@ static int NV16ToI420(const uint8_t* src_y,
     }
   }
 #endif
+#if defined(HAS_INTERPOLATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    InterpolateRow = InterpolateRow_Any_VMX;
+    if (IS_ALIGNED(awidth, 32)) {
+      InterpolateRow = InterpolateRow_VMX;
+    }
+  }
+#endif
 
   align_buffer_64(row_uv, awidth);
   if (!row_uv) {

@@ -52,6 +52,7 @@ set ( ly_common_source_files
   ${ly_src_dir}/row_gcc.cc
   ${ly_src_dir}/row_hvx.cc
   ${ly_src_dir}/row_rvv.cc
+  ${ly_src_dir}/row_vmx.cc
   ${ly_src_dir}/row_vsx.cc
   ${ly_src_dir}/row_wasm.cc
   ${ly_src_dir}/row_win.cc
@@ -63,6 +64,7 @@ set ( ly_common_source_files
   ${ly_src_dir}/scale_hvx.cc
   ${ly_src_dir}/scale_rgb.cc
   ${ly_src_dir}/scale_rvv.cc
+  ${ly_src_dir}/scale_vmx.cc
   ${ly_src_dir}/scale_vsx.cc
   ${ly_src_dir}/scale_uv.cc
   ${ly_src_dir}/scale_wasm.cc

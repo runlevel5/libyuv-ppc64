@@ -653,6 +653,26 @@ SDANY(ScaleARGBRowDown2Box_Any_VSX,
       4,
       7)
 #endif
+#ifdef HAS_SCALEARGBROWDOWN2_VMX
+SDANY(ScaleARGBRowDown2_Any_VMX,
+      ScaleARGBRowDown2_VMX,
+      ScaleARGBRowDown2_C,
+      2,
+      4,
+      7)
+SDANY(ScaleARGBRowDown2Linear_Any_VMX,
+      ScaleARGBRowDown2Linear_VMX,
+      ScaleARGBRowDown2Linear_C,
+      2,
+      4,
+      7)
+SDANY(ScaleARGBRowDown2Box_Any_VMX,
+      ScaleARGBRowDown2Box_VMX,
+      ScaleARGBRowDown2Box_C,
+      2,
+      4,
+      7)
+#endif
 #undef SDANY16
 #undef SDODD
 #undef SDANY

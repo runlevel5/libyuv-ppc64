@@ -175,6 +175,22 @@ static void ScaleARGBDown2(int src_width,
     }
   }
 #endif
+#if defined(HAS_SCALEARGBROWDOWN2_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    ScaleARGBRowDown2 =
+        filtering == kFilterNone
+            ? ScaleARGBRowDown2_Any_VMX
+            : (filtering == kFilterLinear ? ScaleARGBRowDown2Linear_Any_VMX
+                                          : ScaleARGBRowDown2Box_Any_VMX);
+    if (IS_ALIGNED(dst_width, 8)) {
+      ScaleARGBRowDown2 =
+          filtering == kFilterNone
+              ? ScaleARGBRowDown2_VMX
+              : (filtering == kFilterLinear ? ScaleARGBRowDown2Linear_VMX
+                                            : ScaleARGBRowDown2Box_VMX);
+    }
+  }
+#endif
 
   if (filtering == kFilterLinear) {
     src_stride = 0;
@@ -265,6 +281,14 @@ static int ScaleARGBDown4Box(int src_width,
     ScaleARGBRowDown2 = ScaleARGBRowDown2Box_Any_VSX;
     if (IS_ALIGNED(dst_width, 8)) {
       ScaleARGBRowDown2 = ScaleARGBRowDown2Box_VSX;
+    }
+  }
+#endif
+#if defined(HAS_SCALEARGBROWDOWN2_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    ScaleARGBRowDown2 = ScaleARGBRowDown2Box_Any_VMX;
+    if (IS_ALIGNED(dst_width, 8)) {
+      ScaleARGBRowDown2 = ScaleARGBRowDown2Box_VMX;
     }
   }
 #endif
@@ -486,6 +510,14 @@ static int ScaleARGBBilinearDown(int src_width,
     }
   }
 #endif
+#if defined(HAS_INTERPOLATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    InterpolateRow = InterpolateRow_Any_VMX;
+    if (IS_ALIGNED(clip_src_width, 32)) {
+      InterpolateRow = InterpolateRow_VMX;
+    }
+  }
+#endif
 #if defined(HAS_SCALEARGBFILTERCOLS_AVX2)
   if (TestCpuFlag(kCpuHasAVX2) && src_width < 32768) {
     ScaleARGBFilterCols = ScaleARGBFilterCols_AVX2;
@@ -661,6 +693,14 @@ static int ScaleARGBBilinearUp(int src_width,
     }
   }
 #endif
+#if defined(HAS_INTERPOLATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    InterpolateRow = InterpolateRow_Any_VMX;
+    if (IS_ALIGNED(dst_width, 32)) {
+      InterpolateRow = InterpolateRow_VMX;
+    }
+  }
+#endif
   if (src_width >= 32768) {
     ScaleARGBFilterCols =
         filtering ? ScaleARGBFilterCols64_C : ScaleARGBCols64_C;
@@ -759,6 +799,11 @@ static int ScaleARGBBilinearUp(int src_width,
 #if defined(HAS_SCALEARGBCOLSUP2_VSX)
     if (TestCpuFlag(kCpuHasVSX) && IS_ALIGNED(dst_width, 16)) {
       ScaleARGBFilterCols = ScaleARGBColsUp2_VSX;
+    }
+#endif
+#if defined(HAS_SCALEARGBCOLSUP2_VMX)
+    if (TestCpuFlag(kCpuHasVMX) && IS_ALIGNED(dst_width, 16)) {
+      ScaleARGBFilterCols = ScaleARGBColsUp2_VMX;
     }
 #endif
   }
@@ -903,6 +948,11 @@ static void ScaleARGBSimple(int src_width,
 #if defined(HAS_SCALEARGBCOLSUP2_VSX)
     if (TestCpuFlag(kCpuHasVSX) && IS_ALIGNED(dst_width, 16)) {
       ScaleARGBCols = ScaleARGBColsUp2_VSX;
+    }
+#endif
+#if defined(HAS_SCALEARGBCOLSUP2_VMX)
+    if (TestCpuFlag(kCpuHasVMX) && IS_ALIGNED(dst_width, 16)) {
+      ScaleARGBCols = ScaleARGBColsUp2_VMX;
     }
 #endif
   }

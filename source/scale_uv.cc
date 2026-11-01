@@ -919,6 +919,14 @@ static int ScaleUVBilinearDown(int src_width,
     }
   }
 #endif
+#if defined(HAS_INTERPOLATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    InterpolateRow = InterpolateRow_Any_VMX;
+    if (IS_ALIGNED(clip_src_width, 32)) {
+      InterpolateRow = InterpolateRow_VMX;
+    }
+  }
+#endif
   // TODO(fbarchard): Consider not allocating row buffer for kFilterLinear.
   // Allocate a row of UV.
   {
@@ -1157,6 +1165,14 @@ static int ScaleUVBilinearUp(int src_width,
     InterpolateRow = InterpolateRow_Any_VSX;
     if (IS_ALIGNED(dst_width, 32)) {
       InterpolateRow = InterpolateRow_VSX;
+    }
+  }
+#endif
+#if defined(HAS_INTERPOLATEROW_VMX)
+  if (TestCpuFlag(kCpuHasVMX)) {
+    InterpolateRow = InterpolateRow_Any_VMX;
+    if (IS_ALIGNED(dst_width, 32)) {
+      InterpolateRow = InterpolateRow_VMX;
     }
   }
 #endif
