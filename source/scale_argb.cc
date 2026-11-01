@@ -159,6 +159,22 @@ static void ScaleARGBDown2(int src_width,
                                           : ScaleARGBRowDown2Box_HVX);
   }
 #endif
+#if defined(HAS_SCALEARGBROWDOWN2_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ScaleARGBRowDown2 =
+        filtering == kFilterNone
+            ? ScaleARGBRowDown2_Any_VSX
+            : (filtering == kFilterLinear ? ScaleARGBRowDown2Linear_Any_VSX
+                                          : ScaleARGBRowDown2Box_Any_VSX);
+    if (IS_ALIGNED(dst_width, 8)) {
+      ScaleARGBRowDown2 =
+          filtering == kFilterNone
+              ? ScaleARGBRowDown2_VSX
+              : (filtering == kFilterLinear ? ScaleARGBRowDown2Linear_VSX
+                                            : ScaleARGBRowDown2Box_VSX);
+    }
+  }
+#endif
 
   if (filtering == kFilterLinear) {
     src_stride = 0;
@@ -242,6 +258,14 @@ static int ScaleARGBDown4Box(int src_width,
 #if defined(HAS_SCALEARGBROWDOWN2_HVX)
   if (TestCpuFlag(kCpuHasHVX)) {
     ScaleARGBRowDown2 = ScaleARGBRowDown2Box_HVX;
+  }
+#endif
+#if defined(HAS_SCALEARGBROWDOWN2_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ScaleARGBRowDown2 = ScaleARGBRowDown2Box_Any_VSX;
+    if (IS_ALIGNED(dst_width, 8)) {
+      ScaleARGBRowDown2 = ScaleARGBRowDown2Box_VSX;
+    }
   }
 #endif
 
@@ -331,6 +355,16 @@ static void ScaleARGBDownEven(int src_width,
     if (IS_ALIGNED(dst_width, 4)) {
       ScaleARGBRowDownEven = filtering ? ScaleARGBRowDownEvenBox_WASMSIMD
                                        : ScaleARGBRowDownEven_WASMSIMD;
+    }
+  }
+#endif
+#if defined(HAS_SCALEARGBROWDOWNEVEN_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ScaleARGBRowDownEven = filtering ? ScaleARGBRowDownEvenBox_Any_VSX
+                                     : ScaleARGBRowDownEven_Any_VSX;
+    if (IS_ALIGNED(dst_width, 4)) {
+      ScaleARGBRowDownEven =
+          filtering ? ScaleARGBRowDownEvenBox_VSX : ScaleARGBRowDownEven_VSX;
     }
   }
 #endif
@@ -483,6 +517,14 @@ static int ScaleARGBBilinearDown(int src_width,
     ScaleARGBFilterCols = ScaleARGBFilterCols_Any_WASMSIMD;
     if (IS_ALIGNED(dst_width, 4)) {
       ScaleARGBFilterCols = ScaleARGBFilterCols_WASMSIMD;
+    }
+  }
+#endif
+#if defined(HAS_SCALEARGBFILTERCOLS_VSX)
+  if (TestCpuFlag(kCpuHasVSX) && src_width < 32768) {
+    ScaleARGBFilterCols = ScaleARGBFilterCols_Any_VSX;
+    if (IS_ALIGNED(dst_width, 4)) {
+      ScaleARGBFilterCols = ScaleARGBFilterCols_VSX;
     }
   }
 #endif
@@ -678,11 +720,27 @@ static int ScaleARGBBilinearUp(int src_width,
     }
   }
 #endif
+#if defined(HAS_SCALEARGBFILTERCOLS_VSX)
+  if (filtering && TestCpuFlag(kCpuHasVSX) && src_width < 32768) {
+    ScaleARGBFilterCols = ScaleARGBFilterCols_Any_VSX;
+    if (IS_ALIGNED(dst_width, 4)) {
+      ScaleARGBFilterCols = ScaleARGBFilterCols_VSX;
+    }
+  }
+#endif
 #if defined(HAS_SCALEARGBCOLS_WASMSIMD)
   if (!filtering && TestCpuFlag(kCpuHasWASMSIMD) && src_width < 32768) {
     ScaleARGBFilterCols = ScaleARGBCols_Any_WASMSIMD;
     if (IS_ALIGNED(dst_width, 4)) {
       ScaleARGBFilterCols = ScaleARGBCols_WASMSIMD;
+    }
+  }
+#endif
+#if defined(HAS_SCALEARGBCOLS_VSX)
+  if (!filtering && TestCpuFlag(kCpuHasVSX) && src_width < 32768) {
+    ScaleARGBFilterCols = ScaleARGBCols_Any_VSX;
+    if (IS_ALIGNED(dst_width, 4)) {
+      ScaleARGBFilterCols = ScaleARGBCols_VSX;
     }
   }
 #endif
@@ -696,6 +754,11 @@ static int ScaleARGBBilinearUp(int src_width,
 #if defined(HAS_SCALEARGBCOLSUP2_WASMSIMD)
     if (TestCpuFlag(kCpuHasWASMSIMD) && IS_ALIGNED(dst_width, 8)) {
       ScaleARGBFilterCols = ScaleARGBColsUp2_WASMSIMD;
+    }
+#endif
+#if defined(HAS_SCALEARGBCOLSUP2_VSX)
+    if (TestCpuFlag(kCpuHasVSX) && IS_ALIGNED(dst_width, 16)) {
+      ScaleARGBFilterCols = ScaleARGBColsUp2_VSX;
     }
 #endif
   }
@@ -817,6 +880,14 @@ static void ScaleARGBSimple(int src_width,
     }
   }
 #endif
+#if defined(HAS_SCALEARGBCOLS_VSX)
+  if (TestCpuFlag(kCpuHasVSX) && src_width < 32768) {
+    ScaleARGBCols = ScaleARGBCols_Any_VSX;
+    if (IS_ALIGNED(dst_width, 4)) {
+      ScaleARGBCols = ScaleARGBCols_VSX;
+    }
+  }
+#endif
   if (src_width * 2 == dst_width && x < 0x8000) {
     ScaleARGBCols = ScaleARGBColsUp2_C;
 #if defined(HAS_SCALEARGBCOLSUP2_AVX2)
@@ -827,6 +898,11 @@ static void ScaleARGBSimple(int src_width,
 #if defined(HAS_SCALEARGBCOLSUP2_WASMSIMD)
     if (TestCpuFlag(kCpuHasWASMSIMD) && IS_ALIGNED(dst_width, 8)) {
       ScaleARGBCols = ScaleARGBColsUp2_WASMSIMD;
+    }
+#endif
+#if defined(HAS_SCALEARGBCOLSUP2_VSX)
+    if (TestCpuFlag(kCpuHasVSX) && IS_ALIGNED(dst_width, 16)) {
+      ScaleARGBCols = ScaleARGBColsUp2_VSX;
     }
 #endif
   }

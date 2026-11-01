@@ -63,6 +63,7 @@ set ( ly_common_source_files
   ${ly_src_dir}/scale_hvx.cc
   ${ly_src_dir}/scale_rgb.cc
   ${ly_src_dir}/scale_rvv.cc
+  ${ly_src_dir}/scale_vsx.cc
   ${ly_src_dir}/scale_uv.cc
   ${ly_src_dir}/scale_wasm.cc
   ${ly_src_dir}/scale_win.cc

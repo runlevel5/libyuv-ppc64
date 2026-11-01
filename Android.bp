@@ -76,6 +76,7 @@ cc_library {
         "source/scale_rgb.cc",
         "source/scale_rvv.cc",
         "source/scale_uv.cc",
+        "source/scale_vsx.cc",
         "source/video_common.cc",
     ],
 

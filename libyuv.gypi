@@ -90,6 +90,7 @@
       'source/scale_rgb.cc',
       'source/scale_rvv.cc',
       'source/scale_uv.cc',
+      'source/scale_vsx.cc',
       'source/scale_win.cc',
       'source/video_common.cc',
     ],

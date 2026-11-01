@@ -63,6 +63,7 @@ LOCAL_OBJ_FILES := \
 	source/scale_rgb.o         \
 	source/scale_rvv.o         \
 	source/scale_uv.o          \
+	source/scale_vsx.o         \
 	source/scale_win.o         \
 	source/video_common.o
 

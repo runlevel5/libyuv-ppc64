@@ -206,6 +206,15 @@ extern "C" {
 #endif
 
 // The following are available for WebAssembly SIMD128:
+#if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
+    defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define HAS_SCALEARGBCOLS_VSX
+#define HAS_SCALEARGBCOLSUP2_VSX
+#define HAS_SCALEARGBFILTERCOLS_VSX
+#define HAS_SCALEARGBROWDOWN2_VSX
+#define HAS_SCALEARGBROWDOWNEVEN_VSX
+#endif
+
 #if !defined(LIBYUV_DISABLE_WASM) && defined(__wasm_simd128__)
 #define HAS_SCALEADDROW_WASMSIMD
 #define HAS_SCALEARGBCOLS_WASMSIMD
@@ -2071,6 +2080,76 @@ void ScaleUVRowDown2Box_HVX(const uint8_t* src_ptr,
                             ptrdiff_t src_stride,
                             uint8_t* dst_uv,
                             int dst_width);
+
+void ScaleARGBRowDown2_VSX(const uint8_t* src_argb,
+                           ptrdiff_t src_stride,
+                           uint8_t* dst_argb,
+                           int dst_width);
+void ScaleARGBRowDown2Linear_VSX(const uint8_t* src_argb,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst_argb,
+                                 int dst_width);
+void ScaleARGBRowDown2Box_VSX(const uint8_t* src_argb,
+                              ptrdiff_t src_stride,
+                              uint8_t* dst_argb,
+                              int dst_width);
+void ScaleARGBRowDown2_Any_VSX(const uint8_t* src_ptr,
+                               ptrdiff_t src_stride,
+                               uint8_t* dst_ptr,
+                               int dst_width);
+void ScaleARGBRowDown2Linear_Any_VSX(const uint8_t* src_ptr,
+                                     ptrdiff_t src_stride,
+                                     uint8_t* dst_ptr,
+                                     int dst_width);
+void ScaleARGBRowDown2Box_Any_VSX(const uint8_t* src_ptr,
+                                  ptrdiff_t src_stride,
+                                  uint8_t* dst_ptr,
+                                  int dst_width);
+void ScaleARGBRowDownEven_VSX(const uint8_t* src_argb,
+                              ptrdiff_t src_stride,
+                              int src_stepx,
+                              uint8_t* dst_argb,
+                              int dst_width);
+void ScaleARGBRowDownEvenBox_VSX(const uint8_t* src_argb,
+                                 ptrdiff_t src_stride,
+                                 int src_stepx,
+                                 uint8_t* dst_argb,
+                                 int dst_width);
+void ScaleARGBRowDownEven_Any_VSX(const uint8_t* src_ptr,
+                                  ptrdiff_t src_stride,
+                                  int src_stepx,
+                                  uint8_t* dst_ptr,
+                                  int dst_width);
+void ScaleARGBRowDownEvenBox_Any_VSX(const uint8_t* src_ptr,
+                                     ptrdiff_t src_stride,
+                                     int src_stepx,
+                                     uint8_t* dst_ptr,
+                                     int dst_width);
+void ScaleARGBCols_VSX(uint8_t* dst_argb,
+                       const uint8_t* src_argb,
+                       int dst_width,
+                       int x,
+                       int dx);
+void ScaleARGBCols_Any_VSX(uint8_t* dst_ptr,
+                           const uint8_t* src_ptr,
+                           int dst_width,
+                           int x,
+                           int dx);
+void ScaleARGBFilterCols_VSX(uint8_t* dst_argb,
+                             const uint8_t* src_argb,
+                             int dst_width,
+                             int x,
+                             int dx);
+void ScaleARGBFilterCols_Any_VSX(uint8_t* dst_ptr,
+                                 const uint8_t* src_ptr,
+                                 int dst_width,
+                                 int x,
+                                 int dx);
+void ScaleARGBColsUp2_VSX(uint8_t* dst_argb,
+                          const uint8_t* src_argb,
+                          int dst_width,
+                          int x,
+                          int dx);
 
 #ifdef __cplusplus
 }  // extern "C"
