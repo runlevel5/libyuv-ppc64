@@ -2064,6 +2064,9 @@ ANY11I(InterpolateRow_Any_AVX2, InterpolateRow_AVX2, uint8_t, uint8_t, 1, 1, 31)
 #ifdef HAS_INTERPOLATEROW_NEON
 ANY11I(InterpolateRow_Any_NEON, InterpolateRow_NEON, uint8_t, uint8_t, 1, 1, 15)
 #endif
+#ifdef HAS_INTERPOLATEROW_VSX
+ANY11I(InterpolateRow_Any_VSX, InterpolateRow_VSX, uint8_t, uint8_t, 1, 1, 31)
+#endif
 #ifdef HAS_INTERPOLATEROW_LSX
 ANY11I(InterpolateRow_Any_LSX, InterpolateRow_LSX, uint8_t, uint8_t, 1, 1, 15)
 #endif

@@ -1602,6 +1602,14 @@ int I422ToNV21(const uint8_t* src_y,
     }
   }
 #endif
+#if defined(HAS_INTERPOLATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    InterpolateRow = InterpolateRow_Any_VSX;
+    if (IS_ALIGNED(width, 32)) {
+      InterpolateRow = InterpolateRow_VSX;
+    }
+  }
+#endif
 
   if (dst_y) {
     CopyPlane(src_y, src_stride_y, dst_y, dst_stride_y, halfwidth, height);

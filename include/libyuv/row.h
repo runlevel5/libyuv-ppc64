@@ -1340,6 +1340,7 @@ extern "C" {
 #define HAS_I422TOARGBROW_VSX
 #define HAS_I444ALPHATOARGBROW_VSX
 #define HAS_I444TOARGBROW_VSX
+#define HAS_INTERPOLATEROW_VSX
 #define HAS_J400TOARGBROW_VSX
 #define HAS_NV12TOARGBROW_VSX
 #define HAS_NV21TOARGBROW_VSX
@@ -8657,6 +8658,16 @@ void NV21ToARGBRow_Any_VSX(const uint8_t* y_buf,
                            uint8_t* dst_ptr,
                            const struct YuvConstants* yuvconstants,
                            int width);
+void InterpolateRow_VSX(uint8_t* dst_ptr,
+                        const uint8_t* src_ptr,
+                        ptrdiff_t src_stride,
+                        int dst_width,
+                        int source_y_fraction);
+void InterpolateRow_Any_VSX(uint8_t* dst_ptr,
+                            const uint8_t* src_ptr,
+                            ptrdiff_t src_stride_ptr,
+                            int width,
+                            int source_y_fraction);
 
 #ifdef __cplusplus
 }  // extern "C"

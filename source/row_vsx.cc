@@ -485,6 +485,63 @@ void ARGBUnattenuateRow_VSX(const uint8_t* src_argb,
   } while (width > 0);
 }
 
+// (s0 * (256 - f) + s1 * f + 128) >> 8 for 16 bytes.
+static __inline v8u Interpolate16_VSX(v8u s0, v8u s1, v8u f0, v8u f1) {
+  v16u k128 = vec_splats((unsigned short)128);
+  v16u e = vec_add(vec_add(vec_mule(s0, f0), vec_mule(s1, f1)), k128);
+  v16u o = vec_add(vec_add(vec_mulo(s0, f0), vec_mulo(s1, f1)), k128);
+  return HighBytes16_VSX(e, o);
+}
+
+void InterpolateRow_VSX(uint8_t* dst_ptr,
+                        const uint8_t* src_ptr,
+                        ptrdiff_t src_stride,
+                        int dst_width,
+                        int source_y_fraction) {
+  const uint8_t* src_ptr1 = src_ptr + src_stride;
+  if (source_y_fraction == 0) {
+    do {
+      v8u a = Load16_VSX(src_ptr);
+      v8u b = Load16_VSX(src_ptr + 16);
+      Store16_VSX(a, dst_ptr);
+      Store16_VSX(b, dst_ptr + 16);
+      src_ptr += 32;
+      dst_ptr += 32;
+      dst_width -= 32;
+    } while (dst_width > 0);
+    return;
+  }
+  if (source_y_fraction == 128) {
+    do {
+      v8u a0 = Load16_VSX(src_ptr);
+      v8u a1 = Load16_VSX(src_ptr + 16);
+      v8u b0 = Load16_VSX(src_ptr1);
+      v8u b1 = Load16_VSX(src_ptr1 + 16);
+      Store16_VSX(vec_avg(a0, b0), dst_ptr);
+      Store16_VSX(vec_avg(a1, b1), dst_ptr + 16);
+      src_ptr += 32;
+      src_ptr1 += 32;
+      dst_ptr += 32;
+      dst_width -= 32;
+    } while (dst_width > 0);
+    return;
+  }
+  v8u f1 = vec_splats((unsigned char)source_y_fraction);
+  v8u f0 = vec_splats((unsigned char)(256 - source_y_fraction));
+  do {
+    v8u a0 = Load16_VSX(src_ptr);
+    v8u a1 = Load16_VSX(src_ptr + 16);
+    v8u b0 = Load16_VSX(src_ptr1);
+    v8u b1 = Load16_VSX(src_ptr1 + 16);
+    Store16_VSX(Interpolate16_VSX(a0, b0, f0, f1), dst_ptr);
+    Store16_VSX(Interpolate16_VSX(a1, b1, f0, f1), dst_ptr + 16);
+    src_ptr += 32;
+    src_ptr1 += 32;
+    dst_ptr += 32;
+    dst_width -= 32;
+  } while (dst_width > 0);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 }  // namespace libyuv

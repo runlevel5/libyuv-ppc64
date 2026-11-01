@@ -444,6 +444,14 @@ static int ScaleARGBBilinearDown(int src_width,
     }
   }
 #endif
+#if defined(HAS_INTERPOLATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    InterpolateRow = InterpolateRow_Any_VSX;
+    if (IS_ALIGNED(clip_src_width, 32)) {
+      InterpolateRow = InterpolateRow_VSX;
+    }
+  }
+#endif
 #if defined(HAS_SCALEARGBFILTERCOLS_AVX2)
   if (TestCpuFlag(kCpuHasAVX2) && src_width < 32768) {
     ScaleARGBFilterCols = ScaleARGBFilterCols_AVX2;
@@ -600,6 +608,14 @@ static int ScaleARGBBilinearUp(int src_width,
     InterpolateRow = InterpolateRow_Any_WASMSIMD;
     if (IS_ALIGNED(dst_width, 4)) {
       InterpolateRow = InterpolateRow_WASMSIMD;
+    }
+  }
+#endif
+#if defined(HAS_INTERPOLATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    InterpolateRow = InterpolateRow_Any_VSX;
+    if (IS_ALIGNED(dst_width, 32)) {
+      InterpolateRow = InterpolateRow_VSX;
     }
   }
 #endif

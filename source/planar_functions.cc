@@ -5515,6 +5515,14 @@ int InterpolatePlane(const uint8_t* src0,
     InterpolateRow = InterpolateRow_HVX;
   }
 #endif
+#if defined(HAS_INTERPOLATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    InterpolateRow = InterpolateRow_Any_VSX;
+    if (IS_ALIGNED(width, 32)) {
+      InterpolateRow = InterpolateRow_VSX;
+    }
+  }
+#endif
 
   for (y = 0; y < height; ++y) {
     InterpolateRow(dst, src0, src1 - src0, width, interpolation);
@@ -7002,6 +7010,14 @@ int UYVYToNV12(const uint8_t* src_uyvy,
 #if defined(HAS_INTERPOLATEROW_HVX)
   if (TestCpuFlag(kCpuHasHVX)) {
     InterpolateRow = InterpolateRow_HVX;
+  }
+#endif
+#if defined(HAS_INTERPOLATEROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    InterpolateRow = InterpolateRow_Any_VSX;
+    if (IS_ALIGNED(awidth, 32)) {
+      InterpolateRow = InterpolateRow_VSX;
+    }
   }
 #endif
 
