@@ -1334,6 +1334,9 @@ extern "C" {
 #if !defined(LIBYUV_DISABLE_VSX) && defined(__VSX__) && defined(_ARCH_PWR8) && \
     defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define HAS_ARGBATTENUATEROW_VSX
+#define HAS_ARGBTOUV444MATRIXROW_VSX
+#define HAS_ARGBTOUVMATRIXROW_VSX
+#define HAS_ARGBTOYMATRIXROW_VSX
 #define HAS_ARGBUNATTENUATEROW_VSX
 #define HAS_I400TOARGBROW_VSX
 #define HAS_I422ALPHATOARGBROW_VSX
@@ -1344,6 +1347,9 @@ extern "C" {
 #define HAS_J400TOARGBROW_VSX
 #define HAS_NV12TOARGBROW_VSX
 #define HAS_NV21TOARGBROW_VSX
+#define HAS_RGBTOUV444MATRIXROW_VSX
+#define HAS_RGBTOUVMATRIXROW_VSX
+#define HAS_RGBTOYMATRIXROW_VSX
 #endif
 
 #undef SIMD_ALIGNED
@@ -8668,6 +8674,66 @@ void InterpolateRow_Any_VSX(uint8_t* dst_ptr,
                             ptrdiff_t src_stride_ptr,
                             int width,
                             int source_y_fraction);
+void ARGBToYMatrixRow_VSX(const uint8_t* src_argb,
+                          uint8_t* dst_y,
+                          int width,
+                          const struct ArgbConstants* c);
+void ARGBToYMatrixRow_Any_VSX(const uint8_t* src_argb,
+                              uint8_t* dst_y,
+                              int width,
+                              const struct ArgbConstants* c);
+void RGBToYMatrixRow_VSX(const uint8_t* src_rgb,
+                         uint8_t* dst_y,
+                         int width,
+                         const struct ArgbConstants* c);
+void RGBToYMatrixRow_Any_VSX(const uint8_t* src_rgb,
+                             uint8_t* dst_y,
+                             int width,
+                             const struct ArgbConstants* c);
+void ARGBToUV444MatrixRow_VSX(const uint8_t* src_argb,
+                              uint8_t* dst_u,
+                              uint8_t* dst_v,
+                              int width,
+                              const struct ArgbConstants* c);
+void ARGBToUV444MatrixRow_Any_VSX(const uint8_t* src_argb,
+                                  uint8_t* dst_u,
+                                  uint8_t* dst_v,
+                                  int width,
+                                  const struct ArgbConstants* c);
+void RGBToUV444MatrixRow_VSX(const uint8_t* src_rgb,
+                             uint8_t* dst_u,
+                             uint8_t* dst_v,
+                             int width,
+                             const struct ArgbConstants* c);
+void RGBToUV444MatrixRow_Any_VSX(const uint8_t* src_rgb,
+                                 uint8_t* dst_u,
+                                 uint8_t* dst_v,
+                                 int width,
+                                 const struct ArgbConstants* c);
+void ARGBToUVMatrixRow_VSX(const uint8_t* src_argb,
+                           int src_stride_argb,
+                           uint8_t* dst_u,
+                           uint8_t* dst_v,
+                           int width,
+                           const struct ArgbConstants* c);
+void ARGBToUVMatrixRow_Any_VSX(const uint8_t* src_argb,
+                               int src_stride_argb,
+                               uint8_t* dst_u,
+                               uint8_t* dst_v,
+                               int width,
+                               const struct ArgbConstants* c);
+void RGBToUVMatrixRow_VSX(const uint8_t* src_rgb,
+                          int src_stride_rgb,
+                          uint8_t* dst_u,
+                          uint8_t* dst_v,
+                          int width,
+                          const struct ArgbConstants* c);
+void RGBToUVMatrixRow_Any_VSX(const uint8_t* src_rgb,
+                              int src_stride_rgb,
+                              uint8_t* dst_u,
+                              uint8_t* dst_v,
+                              int width,
+                              const struct ArgbConstants* c);
 
 #ifdef __cplusplus
 }  // extern "C"

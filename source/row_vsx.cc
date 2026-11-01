@@ -29,6 +29,7 @@ typedef __vector unsigned char v8u;
 typedef __vector signed char v8s;
 typedef __vector unsigned short v16u;
 typedef __vector signed short v16s;
+typedef __vector signed int v32s;
 typedef __vector unsigned int v32u;
 typedef __vector unsigned long long v64u;
 
@@ -540,6 +541,223 @@ void InterpolateRow_VSX(uint8_t* dst_ptr,
     dst_ptr += 32;
     dst_width -= 32;
   } while (dst_width > 0);
+}
+
+// Picks bits 8 to 15 of each 32-bit lane of a, b, c and d, in that order.
+static __inline v8u Bits8To15_VSX(v32u a, v32u b, v32u c, v32u d) {
+  v8u lo = (v8u)vec_pack(a, b);
+  v8u hi = (v8u)vec_pack(c, d);
+  return SHUFFLE_VSX(lo, hi, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27,
+                     29, 31);
+}
+
+struct ArgbCoefs_VSX {
+  v8u ky;
+  v32u ay;
+  v8s ku;
+  v8s kv;
+  v32s au;
+  v32s av;
+};
+
+// U and V are kAddUV - sum(k * p). They are computed as sum(k * ~p) plus
+// kAddUV - 255 * sum(k), which needs no subtraction per pixel.
+static __inline void LoadArgbCoefs_VSX(const struct ArgbConstants* c,
+                                       struct ArgbCoefs_VSX* k) {
+  v8u ff = vec_splats((unsigned char)0xff);
+  v32s auv = vec_splats((int)c->kAddUV[0]);
+  v32s zero = vec_splats(0);
+  k->ky = Load16_VSX(c->kRGBToY);
+  k->ay = vec_splats((unsigned int)c->kAddY[0]);
+  k->ku = (v8s)Load16_VSX((const uint8_t*)c->kRGBToU);
+  k->kv = (v8s)Load16_VSX((const uint8_t*)c->kRGBToV);
+  k->au = vec_sub(auv, vec_msum(k->ku, ff, zero));
+  k->av = vec_sub(auv, vec_msum(k->kv, ff, zero));
+}
+
+static __inline v8u ARGBToY16_VSX(const v8u* p, const struct ArgbCoefs_VSX* k) {
+  return Bits8To15_VSX(
+      vec_msum(p[0], k->ky, k->ay), vec_msum(p[1], k->ky, k->ay),
+      vec_msum(p[2], k->ky, k->ay), vec_msum(p[3], k->ky, k->ay));
+}
+
+static __inline void ARGBToUV16_VSX(const v8u* p,
+                                    const struct ArgbCoefs_VSX* k,
+                                    uint8_t* dst_u,
+                                    uint8_t* dst_v) {
+  v8u n0 = vec_nor(p[0], p[0]);
+  v8u n1 = vec_nor(p[1], p[1]);
+  v8u n2 = vec_nor(p[2], p[2]);
+  v8u n3 = vec_nor(p[3], p[3]);
+  Store16_VSX(Bits8To15_VSX((v32u)vec_msum(k->ku, n0, k->au),
+                            (v32u)vec_msum(k->ku, n1, k->au),
+                            (v32u)vec_msum(k->ku, n2, k->au),
+                            (v32u)vec_msum(k->ku, n3, k->au)),
+              dst_u);
+  Store16_VSX(Bits8To15_VSX((v32u)vec_msum(k->kv, n0, k->av),
+                            (v32u)vec_msum(k->kv, n1, k->av),
+                            (v32u)vec_msum(k->kv, n2, k->av),
+                            (v32u)vec_msum(k->kv, n3, k->av)),
+              dst_v);
+}
+
+// Averages the 2x2 boxes of 8 ARGB pixels in s0, s1 (row 0) and t0, t1
+// (row 1), rounded, as 4 ARGB pixels. (sum * 64 + 128) >> 8 is
+// (sum + 2) >> 2.
+static __inline v8u BoxARGB4_VSX(v8u s0, v8u s1, v8u t0, v8u t1) {
+  v8u k64 = vec_splats((unsigned char)64);
+  v32u k128 = vec_splats(128u);
+#define BOX_LO_VSX 0, 4, 16, 20, 1, 5, 17, 21, 2, 6, 18, 22, 3, 7, 19, 23
+#define BOX_HI_VSX 8, 12, 24, 28, 9, 13, 25, 29, 10, 14, 26, 30, 11, 15, 27, 31
+  return Bits8To15_VSX(vec_msum(SHUFFLE_VSX(s0, t0, BOX_LO_VSX), k64, k128),
+                       vec_msum(SHUFFLE_VSX(s0, t0, BOX_HI_VSX), k64, k128),
+                       vec_msum(SHUFFLE_VSX(s1, t1, BOX_LO_VSX), k64, k128),
+                       vec_msum(SHUFFLE_VSX(s1, t1, BOX_HI_VSX), k64, k128));
+#undef BOX_LO_VSX
+#undef BOX_HI_VSX
+}
+
+// Loads 16 RGB24 pixels as opaque ARGB, without reading past the 48 bytes.
+static __inline void LoadRGB24_VSX(const uint8_t* src, v8u* p) {
+  v8u ff = vec_splats((unsigned char)0xff);
+#define RGB24_ARGB_VSX 0, 1, 2, 16, 3, 4, 5, 16, 6, 7, 8, 16, 9, 10, 11, 16
+  p[0] = SHUFFLE_VSX(Load16_VSX(src), ff, RGB24_ARGB_VSX);
+  p[1] = SHUFFLE_VSX(Load16_VSX(src + 12), ff, RGB24_ARGB_VSX);
+  p[2] = SHUFFLE_VSX(Load16_VSX(src + 24), ff, RGB24_ARGB_VSX);
+  p[3] = SHUFFLE_VSX(Load16_VSX(src + 32), ff, 4, 5, 6, 16, 7, 8, 9, 16, 10, 11,
+                     12, 16, 13, 14, 15, 16);
+#undef RGB24_ARGB_VSX
+}
+
+static __inline void LoadARGB_VSX(const uint8_t* src, v8u* p) {
+  p[0] = Load16_VSX(src);
+  p[1] = Load16_VSX(src + 16);
+  p[2] = Load16_VSX(src + 32);
+  p[3] = Load16_VSX(src + 48);
+}
+
+void ARGBToYMatrixRow_VSX(const uint8_t* src_argb,
+                          uint8_t* dst_y,
+                          int width,
+                          const struct ArgbConstants* c) {
+  struct ArgbCoefs_VSX k;
+  LoadArgbCoefs_VSX(c, &k);
+  do {
+    v8u p[4];
+    LoadARGB_VSX(src_argb, p);
+    Store16_VSX(ARGBToY16_VSX(p, &k), dst_y);
+    src_argb += 64;
+    dst_y += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+void RGBToYMatrixRow_VSX(const uint8_t* src_rgb,
+                         uint8_t* dst_y,
+                         int width,
+                         const struct ArgbConstants* c) {
+  struct ArgbCoefs_VSX k;
+  LoadArgbCoefs_VSX(c, &k);
+  do {
+    v8u p[4];
+    LoadRGB24_VSX(src_rgb, p);
+    Store16_VSX(ARGBToY16_VSX(p, &k), dst_y);
+    src_rgb += 48;
+    dst_y += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+void ARGBToUV444MatrixRow_VSX(const uint8_t* src_argb,
+                              uint8_t* dst_u,
+                              uint8_t* dst_v,
+                              int width,
+                              const struct ArgbConstants* c) {
+  struct ArgbCoefs_VSX k;
+  LoadArgbCoefs_VSX(c, &k);
+  do {
+    v8u p[4];
+    LoadARGB_VSX(src_argb, p);
+    ARGBToUV16_VSX(p, &k, dst_u, dst_v);
+    src_argb += 64;
+    dst_u += 16;
+    dst_v += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+void RGBToUV444MatrixRow_VSX(const uint8_t* src_rgb,
+                             uint8_t* dst_u,
+                             uint8_t* dst_v,
+                             int width,
+                             const struct ArgbConstants* c) {
+  struct ArgbCoefs_VSX k;
+  LoadArgbCoefs_VSX(c, &k);
+  do {
+    v8u p[4];
+    LoadRGB24_VSX(src_rgb, p);
+    ARGBToUV16_VSX(p, &k, dst_u, dst_v);
+    src_rgb += 48;
+    dst_u += 16;
+    dst_v += 16;
+    width -= 16;
+  } while (width > 0);
+}
+
+void ARGBToUVMatrixRow_VSX(const uint8_t* src_argb,
+                           int src_stride_argb,
+                           uint8_t* dst_u,
+                           uint8_t* dst_v,
+                           int width,
+                           const struct ArgbConstants* c) {
+  const uint8_t* src_argb1 = src_argb + src_stride_argb;
+  struct ArgbCoefs_VSX k;
+  LoadArgbCoefs_VSX(c, &k);
+  do {
+    v8u s[8], t[8], p[4];
+    LoadARGB_VSX(src_argb, s);
+    LoadARGB_VSX(src_argb + 64, s + 4);
+    LoadARGB_VSX(src_argb1, t);
+    LoadARGB_VSX(src_argb1 + 64, t + 4);
+    p[0] = BoxARGB4_VSX(s[0], s[1], t[0], t[1]);
+    p[1] = BoxARGB4_VSX(s[2], s[3], t[2], t[3]);
+    p[2] = BoxARGB4_VSX(s[4], s[5], t[4], t[5]);
+    p[3] = BoxARGB4_VSX(s[6], s[7], t[6], t[7]);
+    ARGBToUV16_VSX(p, &k, dst_u, dst_v);
+    src_argb += 128;
+    src_argb1 += 128;
+    dst_u += 16;
+    dst_v += 16;
+    width -= 32;
+  } while (width > 0);
+}
+
+void RGBToUVMatrixRow_VSX(const uint8_t* src_rgb,
+                          int src_stride_rgb,
+                          uint8_t* dst_u,
+                          uint8_t* dst_v,
+                          int width,
+                          const struct ArgbConstants* c) {
+  const uint8_t* src_rgb1 = src_rgb + src_stride_rgb;
+  struct ArgbCoefs_VSX k;
+  LoadArgbCoefs_VSX(c, &k);
+  do {
+    v8u s[8], t[8], p[4];
+    LoadRGB24_VSX(src_rgb, s);
+    LoadRGB24_VSX(src_rgb + 48, s + 4);
+    LoadRGB24_VSX(src_rgb1, t);
+    LoadRGB24_VSX(src_rgb1 + 48, t + 4);
+    p[0] = BoxARGB4_VSX(s[0], s[1], t[0], t[1]);
+    p[1] = BoxARGB4_VSX(s[2], s[3], t[2], t[3]);
+    p[2] = BoxARGB4_VSX(s[4], s[5], t[4], t[5]);
+    p[3] = BoxARGB4_VSX(s[6], s[7], t[6], t[7]);
+    ARGBToUV16_VSX(p, &k, dst_u, dst_v);
+    src_rgb += 96;
+    src_rgb1 += 96;
+    dst_u += 16;
+    dst_v += 16;
+    width -= 32;
+  } while (width > 0);
 }
 
 #ifdef __cplusplus

@@ -6052,6 +6052,14 @@ static int ARGBSobelize(const uint8_t* src_argb,
     ARGBToYMatrixRow = ARGBToYMatrixRow_HVX;
   }
 #endif
+#if defined(HAS_ARGBTOYMATRIXROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ARGBToYMatrixRow = ARGBToYMatrixRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      ARGBToYMatrixRow = ARGBToYMatrixRow_VSX;
+    }
+  }
+#endif
 
 #if defined(HAS_SOBELYROW_AVX2)
   if (TestCpuFlag(kCpuHasAVX2)) {
