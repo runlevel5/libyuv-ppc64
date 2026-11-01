@@ -147,6 +147,22 @@ static void ScaleUVDown2(int src_width,
                                           : ScaleUVRowDown2Box_HVX);
   }
 #endif
+#if defined(HAS_SCALEUVROWDOWN2_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ScaleUVRowDown2 =
+        filtering == kFilterNone
+            ? ScaleUVRowDown2_Any_VSX
+            : (filtering == kFilterLinear ? ScaleUVRowDown2Linear_Any_VSX
+                                          : ScaleUVRowDown2Box_Any_VSX);
+    if (IS_ALIGNED(dst_width, 16)) {
+      ScaleUVRowDown2 =
+          filtering == kFilterNone
+              ? ScaleUVRowDown2_VSX
+              : (filtering == kFilterLinear ? ScaleUVRowDown2Linear_VSX
+                                            : ScaleUVRowDown2Box_VSX);
+    }
+  }
+#endif
 
   if (filtering == kFilterLinear) {
     src_stride = 0;
@@ -249,6 +265,14 @@ static int ScaleUVDown4Box(int src_width,
     ScaleUVRowDown2 = ScaleUVRowDown2Box_Any_NEON;
     if (IS_ALIGNED(dst_width, 8)) {
       ScaleUVRowDown2 = ScaleUVRowDown2Box_NEON;
+    }
+  }
+#endif
+#if defined(HAS_SCALEUVROWDOWN2BOX_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ScaleUVRowDown2 = ScaleUVRowDown2Box_Any_VSX;
+    if (IS_ALIGNED(dst_width, 16)) {
+      ScaleUVRowDown2 = ScaleUVRowDown2Box_VSX;
     }
   }
 #endif
@@ -522,6 +546,14 @@ static int ScaleUVBox(int src_width,
         }
       }
 #endif
+#if defined(HAS_SCALEADDROW_VSX)
+      if (TestCpuFlag(kCpuHasVSX)) {
+        ScaleAddRow = ScaleAddRow_Any_VSX;
+        if (IS_ALIGNED(row_samples, 16)) {
+          ScaleAddRow = ScaleAddRow_VSX;
+        }
+      }
+#endif
 
       uint32_t uy = y;
       for (j = 0; j < dst_height; ++j) {
@@ -712,6 +744,14 @@ static void ScaleUVDownEven(int src_width,
     }
   }
 #endif  // TODO(fbarchard): Enable Box filter
+#if defined(HAS_SCALEUVROWDOWNEVEN_VSX)
+  if (TestCpuFlag(kCpuHasVSX) && !filtering) {
+    ScaleUVRowDownEven = ScaleUVRowDownEven_Any_VSX;
+    if (IS_ALIGNED(dst_width, 8)) {
+      ScaleUVRowDownEven = ScaleUVRowDownEven_VSX;
+    }
+  }
+#endif
 #if defined(HAS_SCALEUVROWDOWNEVEN_RVV) || defined(HAS_SCALEUVROWDOWN4_RVV)
   if (TestCpuFlag(kCpuHasRVV) && !filtering) {
 #if defined(HAS_SCALEUVROWDOWNEVEN_RVV)
@@ -1367,6 +1407,11 @@ static void ScaleUVLinearUp2(int src_width,
     ScaleRowUp = ScaleUVRowUp2_Linear_RVV;
   }
 #endif
+#ifdef HAS_SCALEUVROWUP2_LINEAR_VSX
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ScaleRowUp = ScaleUVRowUp2_Linear_Any_VSX;
+  }
+#endif
 
   if (dst_height == 1) {
     ScaleRowUp(src_uv + ((src_height - 1) / 2) * src_stride, dst_uv, dst_width);
@@ -1425,6 +1470,11 @@ static void ScaleUVBilinearUp2(int src_width,
 #ifdef HAS_SCALEUVROWUP2_BILINEAR_RVV
   if (TestCpuFlag(kCpuHasRVV)) {
     Scale2RowUp = ScaleUVRowUp2_Bilinear_RVV;
+  }
+#endif
+#ifdef HAS_SCALEUVROWUP2_BILINEAR_VSX
+  if (TestCpuFlag(kCpuHasVSX)) {
+    Scale2RowUp = ScaleUVRowUp2_Bilinear_Any_VSX;
   }
 #endif
 

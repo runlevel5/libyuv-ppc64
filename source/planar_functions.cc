@@ -3878,6 +3878,17 @@ int I420Blend(const uint8_t* src_y0,
         IS_ALIGNED(width, 2) ? ScaleRowDown2Box_HVX : ScaleRowDown2Box_Odd_HVX;
   }
 #endif
+#if defined(HAS_SCALEROWDOWN2_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    ScaleRowDown2 = ScaleRowDown2Box_Odd_VSX;
+    if (IS_ALIGNED(width, 2)) {
+      ScaleRowDown2 = ScaleRowDown2Box_Any_VSX;
+      if (IS_ALIGNED(halfwidth, 32)) {
+        ScaleRowDown2 = ScaleRowDown2Box_VSX;
+      }
+    }
+  }
+#endif
 
   // Row buffer for intermediate alpha pixels.
   align_buffer_64(halfalpha, halfwidth);
