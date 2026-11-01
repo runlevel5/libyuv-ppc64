@@ -172,6 +172,21 @@ TEST_F(LibYUVBaseTest, TestCpuHas) {
   }
 #endif  // defined(__wasm__)
 
+#if defined(__powerpc__)
+  int has_ppc = TestCpuFlag(kCpuHasPPC);
+  if (has_ppc) {
+    int has_vmx = TestCpuFlag(kCpuHasVMX);
+    int has_vsx = TestCpuFlag(kCpuHasVSX);
+    int has_power9 = TestCpuFlag(kCpuHasPOWER9);
+    int has_power10 = TestCpuFlag(kCpuHasPOWER10);
+    printf("Has PPC 0x%x\n", has_ppc);
+    printf("Has VMX 0x%x\n", has_vmx);
+    printf("Has VSX 0x%x\n", has_vsx);
+    printf("Has POWER9 0x%x\n", has_power9);
+    printf("Has POWER10 0x%x\n", has_power10);
+  }
+#endif  // defined(__powerpc__)
+
 #if defined(__hexagon__)
   int has_hexagon = TestCpuFlag(kCpuHasHexagon);
   if (has_hexagon) {
@@ -280,6 +295,30 @@ TEST_F(LibYUVBaseTest, TestCompilerMacros) {
 #endif
 #ifdef __riscv
   printf("__riscv %d\n", __riscv);
+#endif
+#ifdef __powerpc__
+  printf("__powerpc__ %d\n", __powerpc__);
+#endif
+#ifdef __powerpc64__
+  printf("__powerpc64__ %d\n", __powerpc64__);
+#endif
+#ifdef __LITTLE_ENDIAN__
+  printf("__LITTLE_ENDIAN__ %d\n", __LITTLE_ENDIAN__);
+#endif
+#ifdef __ALTIVEC__
+  printf("__ALTIVEC__ %d\n", __ALTIVEC__);
+#endif
+#ifdef __VSX__
+  printf("__VSX__ %d\n", __VSX__);
+#endif
+#ifdef _ARCH_PWR8
+  printf("_ARCH_PWR8 %d\n", _ARCH_PWR8);
+#endif
+#ifdef _ARCH_PWR9
+  printf("_ARCH_PWR9 %d\n", _ARCH_PWR9);
+#endif
+#ifdef _ARCH_PWR10
+  printf("_ARCH_PWR10 %d\n", _ARCH_PWR10);
 #endif
 #ifdef __riscv_vector
   printf("__riscv_vector %d\n", __riscv_vector);
@@ -409,6 +448,29 @@ TEST_F(LibYUVBaseTest, TestLinuxAArch64) {
   ASSERT_EQ(expected, AArch64CpuCaps(0x3fffffffU, 0x200082f3ffULL));
 }
 #endif
+
+TEST_F(LibYUVBaseTest, TestPowerPCCpuCaps) {
+  // No AltiVec.
+  ASSERT_EQ(0, PowerPCCpuCaps(0xcc000000U, 0x0U));
+
+  // PowerPC 970: AltiVec without VSX.
+  ASSERT_EQ(kCpuHasVMX, PowerPCCpuCaps(0xdc000000U, 0x0U));
+
+  // POWER7: VSX without ISA 2.07.
+  ASSERT_EQ(kCpuHasVMX, PowerPCCpuCaps(0xdc0065c2U, 0x0U));
+
+  // POWER8.
+  int expected = kCpuHasVMX | kCpuHasVSX;
+  ASSERT_EQ(expected, PowerPCCpuCaps(0xdc0065c2U, 0xef000000U));
+
+  // Values taken from a POWER9 machine.
+  expected |= kCpuHasPOWER9;
+  ASSERT_EQ(expected, PowerPCCpuCaps(0xdc0065c2U, 0xbef00000U));
+
+  // Values taken from a POWER10 machine.
+  expected |= kCpuHasPOWER10;
+  ASSERT_EQ(expected, PowerPCCpuCaps(0xdc0065c2U, 0xbef60000U));
+}
 
 TEST_F(LibYUVBaseTest, DISABLED_TestLinuxRVV) {
   if (FileExists("../../unit_test/testdata/riscv64.txt")) {

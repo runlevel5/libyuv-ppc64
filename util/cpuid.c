@@ -145,6 +145,21 @@ int main(int argc, const char* argv[]) {
   }
 #endif  // defined(__wasm__)
 
+#if defined(__powerpc__)
+  int has_ppc = TestCpuFlag(kCpuHasPPC);
+  if (has_ppc) {
+    int has_vmx = TestCpuFlag(kCpuHasVMX);
+    int has_vsx = TestCpuFlag(kCpuHasVSX);
+    int has_power9 = TestCpuFlag(kCpuHasPOWER9);
+    int has_power10 = TestCpuFlag(kCpuHasPOWER10);
+    printf("Has PPC 0x%x\n", has_ppc);
+    printf("Has VMX 0x%x\n", has_vmx);
+    printf("Has VSX 0x%x\n", has_vsx);
+    printf("Has POWER9 0x%x\n", has_power9);
+    printf("Has POWER10 0x%x\n", has_power10);
+  }
+#endif  // defined(__powerpc__)
+
 #if defined(__hexagon__)
   int has_hexagon = TestCpuFlag(kCpuHasHexagon);
   if (has_hexagon) {

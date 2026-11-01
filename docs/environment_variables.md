@@ -58,6 +58,13 @@ By default the cpu is detected and the most advanced form of SIMD is used.  But 
 
     LIBYUV_DISABLE_HVX
 
+## PowerPC CPUs
+
+    LIBYUV_DISABLE_VMX
+    LIBYUV_DISABLE_VSX
+    LIBYUV_DISABLE_POWER9
+    LIBYUV_DISABLE_POWER10
+
 # Test Width/Height/Repeat
 
 The unittests default to a small image (128x72) to run fast.  This can be set by environment variable to test a specific resolutions.

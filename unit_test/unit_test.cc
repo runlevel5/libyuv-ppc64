@@ -143,6 +143,20 @@ static int TestCpuEnv(int cpu_info) {
     cpu_info &= ~libyuv::kCpuHasHVX;
   }
 #endif
+#if defined(__powerpc__)
+  if (TestEnv("LIBYUV_DISABLE_VMX")) {
+    cpu_info &= ~libyuv::kCpuHasVMX;
+  }
+  if (TestEnv("LIBYUV_DISABLE_VSX")) {
+    cpu_info &= ~libyuv::kCpuHasVSX;
+  }
+  if (TestEnv("LIBYUV_DISABLE_POWER9")) {
+    cpu_info &= ~libyuv::kCpuHasPOWER9;
+  }
+  if (TestEnv("LIBYUV_DISABLE_POWER10")) {
+    cpu_info &= ~libyuv::kCpuHasPOWER10;
+  }
+#endif
 #if !defined(__pnacl__) && !defined(__CLR_VER) &&                   \
     (defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || \
      defined(_M_IX86))
