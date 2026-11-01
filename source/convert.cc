@@ -3625,6 +3625,14 @@ static int AR30ToI420Matrix(const uint8_t* src_ar30,
     AR30ToARGBRow = AR30ToARGBRow_AVX512BW;
   }
 #endif
+#if defined(HAS_AR30TOARGBROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    AR30ToARGBRow = AR30ToARGBRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      AR30ToARGBRow = AR30ToARGBRow_VSX;
+    }
+  }
+#endif
 #if defined(HAS_ARGBTOYMATRIXROW_SSSE3)
   if (TestCpuFlag(kCpuHasSSSE3)) {
     ARGBToYMatrixRow = ARGBToYMatrixRow_Any_SSSE3;

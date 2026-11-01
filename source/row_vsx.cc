@@ -1223,6 +1223,525 @@ void P410ToARGBRow_VSX(const uint16_t* src_y,
   } while (width > 0);
 }
 
+#define ODD_BYTES_VSX 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31
+#define EVEN_BYTES_VSX 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30
+#define REV32B_VSX 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12
+#define REV16B_VSX 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14
+// The same byte order for each of 4 pixels.
+#define PIXEL4_VSX(a, b, c, d)                                                \
+  a, b, c, d, a + 4, b + 4, c + 4, d + 4, a + 8, b + 8, c + 8, d + 8, a + 12, \
+      b + 12, c + 12, d + 12
+// RAW to ARGB and to RGBA for 4 pixels starting at byte o, 16 being 0xff.
+#define SHUF_ARGB_RAW_VSX(o)                                                 \
+  o + 2, o + 1, o + 0, 16, o + 5, o + 4, o + 3, 16, o + 8, o + 7, o + 6, 16, \
+      o + 11, o + 10, o + 9, 16
+#define SHUF_RGBA_RAW_VSX(o)                                                 \
+  16, o + 2, o + 1, o + 0, 16, o + 5, o + 4, o + 3, 16, o + 8, o + 7, o + 6, \
+      16, o + 11, o + 10, o + 9
+
+// The packed 16 and 32 bit formats are built in lanes holding the
+// little-endian value of their bytes, the way the C rows read them.
+static __inline v32u LE32_VSX(v8u v) {
+  return (v32u)v;
+}
+
+static __inline v8u FromLE32_VSX(v32u v) {
+  return (v8u)v;
+}
+
+static __inline v16u LE16_VSX(v8u v) {
+  return (v16u)v;
+}
+
+static __inline v8u FromLE16_VSX(v16u v) {
+  return (v8u)v;
+}
+
+// The high byte of each 16-bit lane of a and then b.
+static __inline v8u HighBytesSeq_VSX(v16u a, v16u b) {
+  return SHUFFLE_VSX((v8u)a, (v8u)b, ODD_BYTES_VSX);
+}
+
+void ARGBToRGB24Row_VSX(const uint8_t* src_argb, uint8_t* dst_rgb, int width) {
+  do {
+    v8u a = Load16_VSX(src_argb);
+    v8u b = Load16_VSX(src_argb + 16);
+    v8u c = Load16_VSX(src_argb + 32);
+    v8u d = Load16_VSX(src_argb + 48);
+    Store16_VSX(SHUFFLE_VSX(a, b, 0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16,
+                            17, 18, 20),
+                dst_rgb);
+    Store16_VSX(SHUFFLE_VSX(b, c, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20,
+                            21, 22, 24, 25),
+                dst_rgb + 16);
+    Store16_VSX(SHUFFLE_VSX(c, d, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24,
+                            25, 26, 28, 29, 30),
+                dst_rgb + 32);
+    src_argb += 64;
+    dst_rgb += 48;
+    width -= 16;
+  } while (width > 0);
+}
+
+void ARGBToRAWRow_VSX(const uint8_t* src_argb, uint8_t* dst_rgb, int width) {
+  do {
+    v8u a = Load16_VSX(src_argb);
+    v8u b = Load16_VSX(src_argb + 16);
+    v8u c = Load16_VSX(src_argb + 32);
+    v8u d = Load16_VSX(src_argb + 48);
+    Store16_VSX(SHUFFLE_VSX(a, b, 2, 1, 0, 6, 5, 4, 10, 9, 8, 14, 13, 12, 18,
+                            17, 16, 22),
+                dst_rgb);
+    Store16_VSX(SHUFFLE_VSX(b, c, 5, 4, 10, 9, 8, 14, 13, 12, 18, 17, 16, 22,
+                            21, 20, 26, 25),
+                dst_rgb + 16);
+    Store16_VSX(SHUFFLE_VSX(c, d, 8, 14, 13, 12, 18, 17, 16, 22, 21, 20, 26, 25,
+                            24, 30, 29, 28),
+                dst_rgb + 32);
+    src_argb += 64;
+    dst_rgb += 48;
+    width -= 16;
+  } while (width > 0);
+}
+
+void RAWToRGB24Row_VSX(const uint8_t* src_raw, uint8_t* dst_rgb24, int width) {
+  do {
+    v8u a = Load16_VSX(src_raw);
+    v8u b = Load16_VSX(src_raw + 16);
+    v8u c = Load16_VSX(src_raw + 15);
+    v8u d = Load16_VSX(src_raw + 31);
+    v8u e = Load16_VSX(src_raw + 30);
+    v8u f = Load16_VSX(src_raw + 32);
+    Store16_VSX(
+        SHUFFLE_VSX(a, b, 2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9, 14, 13, 12, 17),
+        dst_rgb24);
+    Store16_VSX(SHUFFLE_VSX(c, d, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9, 14, 13, 12,
+                            17, 16),
+                dst_rgb24 + 16);
+    Store16_VSX(SHUFFLE_VSX(e, f, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9, 14, 13, 12,
+                            31, 30, 15),
+                dst_rgb24 + 32);
+    src_raw += 48;
+    dst_rgb24 += 48;
+    width -= 16;
+  } while (width > 0);
+}
+
+void RGB24MirrorRow_VSX(const uint8_t* src_rgb24,
+                        uint8_t* dst_rgb24,
+                        int width) {
+  src_rgb24 += width * 3;
+  do {
+    src_rgb24 -= 48;
+    v8u a = Load16_VSX(src_rgb24 + 30);
+    v8u b = Load16_VSX(src_rgb24 + 32);
+    v8u c = Load16_VSX(src_rgb24 + 15);
+    v8u d = Load16_VSX(src_rgb24 + 31);
+    v8u e = Load16_VSX(src_rgb24);
+    v8u f = Load16_VSX(src_rgb24 + 16);
+    Store16_VSX(SHUFFLE_VSX(a, b, 15, 30, 31, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3,
+                            4, 5, 0),
+                dst_rgb24);
+    Store16_VSX(SHUFFLE_VSX(c, d, 16, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4,
+                            5, 0, 1),
+                dst_rgb24 + 16);
+    Store16_VSX(
+        SHUFFLE_VSX(e, f, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2),
+        dst_rgb24 + 32);
+    dst_rgb24 += 48;
+    width -= 16;
+  } while (width > 0);
+}
+
+// Loads 16 RGB24 or RAW pixels and shuffles each 4 with m, where index 16 is
+// 0xff.
+#define LOAD_RGB24_X4_VSX(src, p, m0, m3)              \
+  do {                                                 \
+    v8u ff_ = vec_splats((unsigned char)0xff);         \
+    p[0] = SHUFFLE_VSX(Load16_VSX(src), ff_, m0);      \
+    p[1] = SHUFFLE_VSX(Load16_VSX(src + 12), ff_, m0); \
+    p[2] = SHUFFLE_VSX(Load16_VSX(src + 24), ff_, m0); \
+    p[3] = SHUFFLE_VSX(Load16_VSX(src + 32), ff_, m3); \
+  } while (0)
+
+static __inline void StoreARGB16_VSX(const v8u* p, uint8_t* dst) {
+  Store16_VSX(p[0], dst);
+  Store16_VSX(p[1], dst + 16);
+  Store16_VSX(p[2], dst + 32);
+  Store16_VSX(p[3], dst + 48);
+}
+
+void RGB24ToARGBRow_VSX(const uint8_t* src_rgb24,
+                        uint8_t* dst_argb,
+                        int width) {
+  do {
+    v8u p[4];
+    LoadRGB24_VSX(src_rgb24, p);
+    StoreARGB16_VSX(p, dst_argb);
+    src_rgb24 += 48;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void RAWToARGBRow_VSX(const uint8_t* src_raw, uint8_t* dst_argb, int width) {
+  do {
+    v8u p[4];
+    LOAD_RGB24_X4_VSX(src_raw, p, SHUF_ARGB_RAW_VSX(0), SHUF_ARGB_RAW_VSX(4));
+    StoreARGB16_VSX(p, dst_argb);
+    src_raw += 48;
+    dst_argb += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+void RAWToRGBARow_VSX(const uint8_t* src_raw, uint8_t* dst_rgba, int width) {
+  do {
+    v8u p[4];
+    LOAD_RGB24_X4_VSX(src_raw, p, SHUF_RGBA_RAW_VSX(0), SHUF_RGBA_RAW_VSX(4));
+    StoreARGB16_VSX(p, dst_rgba);
+    src_raw += 48;
+    dst_rgba += 64;
+    width -= 16;
+  } while (width > 0);
+}
+
+// Byte swizzles applied to each pixel of ARGB.
+#define SWIZZLE_ROW_VSX(NAME, M)                           \
+  void NAME(const uint8_t* src, uint8_t* dst, int width) { \
+    do {                                                   \
+      v8u a = Load16_VSX(src);                             \
+      v8u b = Load16_VSX(src + 16);                        \
+      v8u c = Load16_VSX(src + 32);                        \
+      v8u d = Load16_VSX(src + 48);                        \
+      Store16_VSX(SHUFFLE_VSX(a, a, M), dst);              \
+      Store16_VSX(SHUFFLE_VSX(b, b, M), dst + 16);         \
+      Store16_VSX(SHUFFLE_VSX(c, c, M), dst + 32);         \
+      Store16_VSX(SHUFFLE_VSX(d, d, M), dst + 48);         \
+      src += 64;                                           \
+      dst += 64;                                           \
+      width -= 16;                                         \
+    } while (width > 0);                                   \
+  }
+
+SWIZZLE_ROW_VSX(ARGBToABGRRow_VSX, PIXEL4_VSX(2, 1, 0, 3))
+SWIZZLE_ROW_VSX(ARGBToBGRARow_VSX, PIXEL4_VSX(3, 2, 1, 0))
+SWIZZLE_ROW_VSX(ARGBToRGBARow_VSX, PIXEL4_VSX(3, 0, 1, 2))
+SWIZZLE_ROW_VSX(RGBAToARGBRow_VSX, PIXEL4_VSX(1, 2, 3, 0))
+
+// Packs each pixel into 16 bits: the bytes are shifted right by sh, then
+// summed with weights w0, and those summed with weights w1 are added shifted
+// left by s1. vmsumubm works on the bytes of each pixel in memory order, so
+// this needs no byte swap on big-endian.
+struct Pack16_VSX {
+  v8u sh, w0, w1;
+  v32u s1;
+};
+
+static __inline v32u Pack16Px4_VSX(v8u p, const struct Pack16_VSX* k) {
+  v8u q = vec_sr(p, k->sh);
+  v32u zero = vec_splats(0u);
+  return vec_msum(q, k->w0, vec_sl(vec_msum(q, k->w1, zero), k->s1));
+}
+
+// Packs 16 ARGB pixels, after adding dv to each byte with saturation when
+// dither is set. le stores the 16 bit pixels as little-endian, otherwise in
+// native byte order, as the C rows do.
+static __inline void ARGBTo16Bit_VSX(const uint8_t* src_argb,
+                                     uint8_t* dst,
+                                     int width,
+                                     const struct Pack16_VSX* k,
+                                     int le,
+                                     int dither,
+                                     v8u dv) {
+  do {
+    v8u p[4];
+    int i;
+    for (i = 0; i < 4; ++i) {
+      p[i] = Load16_VSX(src_argb + i * 16);
+      if (dither) {
+        p[i] = vec_adds(p[i], dv);
+      }
+    }
+    v16u lo = vec_pack(Pack16Px4_VSX(p[0], k), Pack16Px4_VSX(p[1], k));
+    v16u hi = vec_pack(Pack16Px4_VSX(p[2], k), Pack16Px4_VSX(p[3], k));
+    Store16_VSX(le ? FromLE16_VSX(lo) : (v8u)lo, dst);
+    Store16_VSX(le ? FromLE16_VSX(hi) : (v8u)hi, dst + 16);
+    src_argb += 64;
+    dst += 32;
+    width -= 16;
+  } while (width > 0);
+}
+
+#define PACK16_K_VSX(b, g, r, a, w0g, w1a, s1)                          \
+  {                                                                     \
+    {PIXEL4_VALUES_VSX(b, g, r, a)}, {PIXEL4_VALUES_VSX(1, w0g, 0, 0)}, \
+        {PIXEL4_VALUES_VSX(0, 0, 1, w1a)}, {                            \
+      s1, s1, s1, s1                                                    \
+    }                                                                   \
+  }
+#define PIXEL4_VALUES_VSX(a, b, c, d) \
+  a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d
+
+static const struct Pack16_VSX kRGB565_VSX =
+    PACK16_K_VSX(3, 2, 3, 8, 32, 0, 11);
+static const struct Pack16_VSX kARGB1555_VSX =
+    PACK16_K_VSX(3, 3, 3, 7, 32, 32, 10);
+static const struct Pack16_VSX kARGB4444_VSX =
+    PACK16_K_VSX(4, 4, 4, 4, 16, 16, 8);
+
+void ARGBToRGB565Row_VSX(const uint8_t* src_argb, uint8_t* dst_rgb, int width) {
+  ARGBTo16Bit_VSX(src_argb, dst_rgb, width, &kRGB565_VSX, 1, 0,
+                  vec_splats((unsigned char)0));
+}
+
+void ARGBToARGB1555Row_VSX(const uint8_t* src_argb,
+                           uint8_t* dst_rgb,
+                           int width) {
+  ARGBTo16Bit_VSX(src_argb, dst_rgb, width, &kARGB1555_VSX, 0, 0,
+                  vec_splats((unsigned char)0));
+}
+
+void ARGBToARGB4444Row_VSX(const uint8_t* src_argb,
+                           uint8_t* dst_rgb,
+                           int width) {
+  ARGBTo16Bit_VSX(src_argb, dst_rgb, width, &kARGB4444_VSX, 0, 0,
+                  vec_splats((unsigned char)0));
+}
+
+// Each pixel in turn adds one byte of dither4 to B, G and R.
+void ARGBToRGB565DitherRow_VSX(const uint8_t* src_argb,
+                               uint8_t* dst_rgb,
+                               uint32_t dither4,
+                               int width) {
+  uint8_t d[4];
+  memcpy(d, &dither4, 4);
+  v8u dv = {d[0], d[0], d[0], 0, d[1], d[1], d[1], 0,
+            d[2], d[2], d[2], 0, d[3], d[3], d[3], 0};
+  ARGBTo16Bit_VSX(src_argb, dst_rgb, width, &kRGB565_VSX, 0, 1, dv);
+}
+
+// (c << 2) | (c >> 6) for the channel in the low 8 bits of each lane.
+static __inline v32u Expand10_VSX(v32u c) {
+  return vec_or(vec_sl(c, vec_splats(2u)), vec_sr(c, vec_splats(6u)));
+}
+
+// bs and rs are the shifts that bring B and R to the low byte.
+static __inline v32u ToAR30_VSX(v8u v, unsigned bs, unsigned rs) {
+  v32u p = LE32_VSX(v);
+  v32u ff = vec_splats(0xffu);
+  v32u b = Expand10_VSX(vec_and(vec_sr(p, vec_splats(bs)), ff));
+  v32u g = Expand10_VSX(vec_and(vec_sr(p, vec_splats(8u)), ff));
+  v32u r = Expand10_VSX(vec_and(vec_sr(p, vec_splats(rs)), ff));
+  v32u a = vec_sl(vec_sr(p, vec_splats(30u)), vec_splats(30u));
+  return vec_or(vec_or(b, vec_sl(g, vec_splats(10u))),
+                vec_or(vec_sl(r, vec_splats(20u)), a));
+}
+
+#define TOAR30_ROW_VSX(NAME, bs, rs)                            \
+  void NAME(const uint8_t* src, uint8_t* dst_ar30, int width) { \
+    unsigned int* d = (unsigned int*)dst_ar30;                  \
+    do {                                                        \
+      v8u a = Load16_VSX(src);                                  \
+      v8u b = Load16_VSX(src + 16);                             \
+      v8u c = Load16_VSX(src + 32);                             \
+      v8u e = Load16_VSX(src + 48);                             \
+      vec_xst(ToAR30_VSX(a, bs, rs), 0, d);                     \
+      vec_xst(ToAR30_VSX(b, bs, rs), 16, d);                    \
+      vec_xst(ToAR30_VSX(c, bs, rs), 32, d);                    \
+      vec_xst(ToAR30_VSX(e, bs, rs), 48, d);                    \
+      src += 64;                                                \
+      d += 16;                                                  \
+      width -= 16;                                              \
+    } while (width > 0);                                        \
+  }
+
+TOAR30_ROW_VSX(ARGBToAR30Row_VSX, 0u, 16u)
+TOAR30_ROW_VSX(ABGRToAR30Row_VSX, 16u, 0u)
+
+// AR30 to 8 bit channels with B (or R) at shift lo, G and the other at hi,
+// and alpha replicated from 2 bits.
+static __inline v32u FromAR30_VSX(v32u x, int abgr) {
+  v32u ff = vec_splats(0xffu);
+  v32u b = vec_and(vec_sr(x, vec_splats(2u)), ff);
+  v32u g = vec_and(vec_sr(x, vec_splats(4u)), vec_splats(0xff00u));
+  v32u r = vec_and(vec_sr(x, vec_splats(22u)), ff);
+  v32u a = vec_mul(vec_sr(x, vec_splats(30u)), vec_splats(0x55000000u));
+  return abgr ? vec_or(vec_or(r, g), vec_or(vec_sl(b, vec_splats(16u)), a))
+              : vec_or(vec_or(b, g), vec_or(vec_sl(r, vec_splats(16u)), a));
+}
+
+static __inline v32u AR30ToAB30_VSX(v32u x) {
+  v32u k3ff = vec_splats(0x3ffu);
+  v32u r = vec_and(vec_sr(x, vec_splats(20u)), k3ff);
+  v32u b = vec_sl(vec_and(x, k3ff), vec_splats(20u));
+  return vec_or(vec_or(r, b), vec_and(x, vec_splats(0xc00ffc00u)));
+}
+
+#define AR30_ROW_VSX(NAME, OP)                                  \
+  void NAME(const uint8_t* src_ar30, uint8_t* dst, int width) { \
+    const unsigned int* s = (const unsigned int*)src_ar30;      \
+    unsigned int* d = (unsigned int*)dst;                       \
+    do {                                                        \
+      v32u a = vec_xl(0, s);                                    \
+      v32u b = vec_xl(16, s);                                   \
+      v32u c = vec_xl(32, s);                                   \
+      v32u e = vec_xl(48, s);                                   \
+      vec_xst(OP(a), 0, d);                                     \
+      vec_xst(OP(b), 16, d);                                    \
+      vec_xst(OP(c), 32, d);                                    \
+      vec_xst(OP(e), 48, d);                                    \
+      s += 16;                                                  \
+      d += 16;                                                  \
+      width -= 16;                                              \
+    } while (width > 0);                                        \
+  }
+
+#define TOARGB_OP_VSX(x) FromAR30_VSX(x, 0)
+#define TOABGR_OP_VSX(x) FromAR30_VSX(x, 1)
+AR30_ROW_VSX(AR30ToARGBRow_VSX, TOARGB_OP_VSX)
+AR30_ROW_VSX(AR30ToABGRRow_VSX, TOABGR_OP_VSX)
+AR30_ROW_VSX(AR30ToAB30Row_VSX, AR30ToAB30_VSX)
+#undef TOARGB_OP_VSX
+#undef TOABGR_OP_VSX
+
+// ARGB to 16 bit channels, each byte duplicated (v * 0x0101).
+#define TO64_ROW_VSX(NAME, LO, HI)                               \
+  void NAME(const uint8_t* src_argb, uint16_t* dst, int width) { \
+    do {                                                         \
+      v8u a = Load16_VSX(src_argb);                              \
+      v8u b = Load16_VSX(src_argb + 16);                         \
+      vec_xst(SHUFFLE_VSX(a, a, LO), 0, (uint8_t*)dst);          \
+      vec_xst(SHUFFLE_VSX(a, a, HI), 16, (uint8_t*)dst);         \
+      vec_xst(SHUFFLE_VSX(b, b, LO), 32, (uint8_t*)dst);         \
+      vec_xst(SHUFFLE_VSX(b, b, HI), 48, (uint8_t*)dst);         \
+      src_argb += 32;                                            \
+      dst += 32;                                                 \
+      width -= 8;                                                \
+    } while (width > 0);                                         \
+  }
+
+TO64_ROW_VSX(ARGBToAR64Row_VSX, DUP2_LO_VSX, DUP2_HI_VSX)
+#define AB64_LO_VSX 2, 2, 1, 1, 0, 0, 3, 3, 6, 6, 5, 5, 4, 4, 7, 7
+#define AB64_HI_VSX 10, 10, 9, 9, 8, 8, 11, 11, 14, 14, 13, 13, 12, 12, 15, 15
+TO64_ROW_VSX(ARGBToAB64Row_VSX, AB64_LO_VSX, AB64_HI_VSX)
+
+void AR64ToARGBRow_VSX(const uint16_t* src_ar64, uint8_t* dst_argb, int width) {
+  do {
+    v16u a = vec_xl(0, src_ar64);
+    v16u b = vec_xl(16, src_ar64);
+    v16u c = vec_xl(32, src_ar64);
+    v16u d = vec_xl(48, src_ar64);
+    Store16_VSX(HighBytesSeq_VSX(a, b), dst_argb);
+    Store16_VSX(HighBytesSeq_VSX(c, d), dst_argb + 16);
+    src_ar64 += 32;
+    dst_argb += 32;
+    width -= 8;
+  } while (width > 0);
+}
+
+#define SWAP_RB64_VSX 4, 5, 2, 3, 0, 1, 6, 7, 12, 13, 10, 11, 8, 9, 14, 15
+
+void AB64ToARGBRow_VSX(const uint16_t* src_ab64, uint8_t* dst_argb, int width) {
+  do {
+    v8u a = (v8u)vec_xl(0, src_ab64);
+    v8u b = (v8u)vec_xl(16, src_ab64);
+    v8u c = (v8u)vec_xl(32, src_ab64);
+    v8u d = (v8u)vec_xl(48, src_ab64);
+    Store16_VSX(HighBytesSeq_VSX((v16u)SHUFFLE_VSX(a, a, SWAP_RB64_VSX),
+                                 (v16u)SHUFFLE_VSX(b, b, SWAP_RB64_VSX)),
+                dst_argb);
+    Store16_VSX(HighBytesSeq_VSX((v16u)SHUFFLE_VSX(c, c, SWAP_RB64_VSX),
+                                 (v16u)SHUFFLE_VSX(d, d, SWAP_RB64_VSX)),
+                dst_argb + 16);
+    src_ab64 += 32;
+    dst_argb += 32;
+    width -= 8;
+  } while (width > 0);
+}
+
+void AR64ToAB64Row_VSX(const uint16_t* src_ar64,
+                       uint16_t* dst_ab64,
+                       int width) {
+  do {
+    v8u a = (v8u)vec_xl(0, src_ar64);
+    v8u b = (v8u)vec_xl(16, src_ar64);
+    vec_xst(SHUFFLE_VSX(a, a, SWAP_RB64_VSX), 0, (uint8_t*)dst_ab64);
+    vec_xst(SHUFFLE_VSX(b, b, SWAP_RB64_VSX), 16, (uint8_t*)dst_ab64);
+    src_ar64 += 16;
+    dst_ab64 += 16;
+    width -= 4;
+  } while (width > 0);
+}
+
+// Expands 8 packed 16-bit pixels (little-endian values) to ARGB, given the
+// B, G, R and A fields already widened to 8 bits in 16-bit lanes.
+static __inline void Store16BitAsARGB_VSX(v16u b,
+                                          v16u g,
+                                          v16u r,
+                                          v16u a,
+                                          uint8_t* dst_argb) {
+  StoreARGB8_VSX((v8u)vec_pack(b, g), (v8u)vec_pack(r, a), dst_argb);
+}
+
+// (c << s) | (c >> t) for a field of 8 - s bits.
+static __inline v16u Expand16_VSX(v16u c, unsigned short s, unsigned short t) {
+  return vec_or(vec_sl(c, vec_splats(s)), vec_sr(c, vec_splats(t)));
+}
+
+static __inline void RGB565ToARGB8_VSX(v16u v, uint8_t* dst_argb) {
+  const v16u k1f = vec_splats((unsigned short)0x1f);
+  const v16u k3f = vec_splats((unsigned short)0x3f);
+  v16u b = Expand16_VSX(vec_and(v, k1f), 3, 2);
+  v16u g = Expand16_VSX(vec_and(vec_sr(v, vec_splats((unsigned short)5)), k3f),
+                        2, 4);
+  v16u r = Expand16_VSX(vec_sr(v, vec_splats((unsigned short)11)), 3, 2);
+  Store16BitAsARGB_VSX(b, g, r, vec_splats((unsigned short)0xff), dst_argb);
+}
+
+static __inline void ARGB1555ToARGB8_VSX(v16u v, uint8_t* dst_argb) {
+  const v16u k1f = vec_splats((unsigned short)0x1f);
+  v16u b = Expand16_VSX(vec_and(v, k1f), 3, 2);
+  v16u g = Expand16_VSX(vec_and(vec_sr(v, vec_splats((unsigned short)5)), k1f),
+                        3, 2);
+  v16u r = Expand16_VSX(vec_and(vec_sr(v, vec_splats((unsigned short)10)), k1f),
+                        3, 2);
+  v16u a =
+      vec_mladd(vec_sr(v, vec_splats((unsigned short)15)),
+                vec_splats((unsigned short)255), vec_splats((unsigned short)0));
+  Store16BitAsARGB_VSX(b, g, r, a, dst_argb);
+}
+
+static __inline void ARGB4444ToARGB8_VSX(v16u v, uint8_t* dst_argb) {
+  const v16u kf = vec_splats((unsigned short)0xf);
+  const v16u k17 = vec_splats((unsigned short)17);
+  const v16u zero = vec_splats((unsigned short)0);
+  v16u b = vec_mladd(vec_and(v, kf), k17, zero);
+  v16u g = vec_mladd(vec_and(vec_sr(v, vec_splats((unsigned short)4)), kf), k17,
+                     zero);
+  v16u r = vec_mladd(vec_and(vec_sr(v, vec_splats((unsigned short)8)), kf), k17,
+                     zero);
+  v16u a = vec_mladd(vec_sr(v, vec_splats((unsigned short)12)), k17, zero);
+  Store16BitAsARGB_VSX(b, g, r, a, dst_argb);
+}
+
+#define FROM16_ROW_VSX(NAME, OP)                                \
+  void NAME(const uint8_t* src, uint8_t* dst_argb, int width) { \
+    do {                                                        \
+      v16u a = LE16_VSX(Load16_VSX(src));                       \
+      v16u b = LE16_VSX(Load16_VSX(src + 16));                  \
+      OP(a, dst_argb);                                          \
+      OP(b, dst_argb + 32);                                     \
+      src += 32;                                                \
+      dst_argb += 64;                                           \
+      width -= 16;                                              \
+    } while (width > 0);                                        \
+  }
+
+FROM16_ROW_VSX(RGB565ToARGBRow_VSX, RGB565ToARGB8_VSX)
+FROM16_ROW_VSX(ARGB1555ToARGBRow_VSX, ARGB1555ToARGB8_VSX)
+FROM16_ROW_VSX(ARGB4444ToARGBRow_VSX, ARGB4444ToARGB8_VSX)
+
 #ifdef __cplusplus
 }  // extern "C"
 }  // namespace libyuv

@@ -3477,6 +3477,14 @@ int RGB24Mirror(const uint8_t* src_rgb24,
     }
   }
 #endif
+#if defined(HAS_RGB24MIRRORROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    RGB24MirrorRow = RGB24MirrorRow_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      RGB24MirrorRow = RGB24MirrorRow_VSX;
+    }
+  }
+#endif
 
   // Mirror plane
   for (y = 0; y < height; ++y) {
@@ -4460,6 +4468,14 @@ int RAWToRGB24(const uint8_t* src_raw,
     RAWToRGB24Row = RAWToRGB24Row_Any_WASMSIMD;
     if (IS_ALIGNED(width, 16)) {
       RAWToRGB24Row = RAWToRGB24Row_WASMSIMD;
+    }
+  }
+#endif
+#if defined(HAS_RAWTORGB24ROW_VSX)
+  if (TestCpuFlag(kCpuHasVSX)) {
+    RAWToRGB24Row = RAWToRGB24Row_Any_VSX;
+    if (IS_ALIGNED(width, 16)) {
+      RAWToRGB24Row = RAWToRGB24Row_VSX;
     }
   }
 #endif
